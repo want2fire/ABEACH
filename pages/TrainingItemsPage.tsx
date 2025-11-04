@@ -1,10 +1,89 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { type TrainingItem, type TagData, type TagColor } from '../types';
+import { type TrainingItem, type TagData, type TagColor, type Personnel } from '../types';
 import { TrashIcon } from '../components/icons/TrashIcon';
 import Tag from '../components/Tag';
 import Importer from '../components/Importer';
 
 type TagType = 'workArea' | 'type' | 'chapter' | 'job';
+
+// Assign to Personnel Modal
+const AssignToPersonnelModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onAssign: (personnelIds: Set<string>) => void;
+  personnelList: Personnel[];
+}> = ({ isOpen, onClose, onAssign, personnelList }) => {
+  const [selectedPersonnel, setSelectedPersonnel] = useState(new Set<string>());
+
+  const activePersonnel = personnelList.filter(p => p.status === '在職');
+
+  const handleToggle = (id: string) => {
+    setSelectedPersonnel(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedPersonnel.size === activePersonnel.length) {
+      setSelectedPersonnel(new Set());
+    } else {
+      setSelectedPersonnel(new Set(activePersonnel.map(p => p.id)));
+    }
+  };
+
+  const handleConfirm = () => {
+    onAssign(selectedPersonnel);
+    onClose();
+    setSelectedPersonnel(new Set());
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] flex flex-col">
+        <div className="p-4 border-b">
+          <h3 className="text-lg font-semibold">指派任務給人員</h3>
+        </div>
+        <div className="p-4 overflow-y-auto">
+          <div className="flex items-center p-2 border-b">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+              checked={selectedPersonnel.size === activePersonnel.length && activePersonnel.length > 0}
+              onChange={handleSelectAll}
+            />
+            <label className="ml-3 text-sm font-medium">全選/取消全選</label>
+          </div>
+          <ul className="divide-y divide-slate-200">
+            {activePersonnel.map(person => (
+              <li key={person.id} className="py-3 flex items-center">
+                <input
+                  type="checkbox"
+                  id={`person-${person.id}`}
+                  className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                  checked={selectedPersonnel.has(person.id)}
+                  onChange={() => handleToggle(person.id)}
+                />
+                <label htmlFor={`person-${person.id}`} className="ml-3 text-sm font-medium">{person.name} <span className="text-xs text-slate-500">({person.jobTitle})</span></label>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="p-4 bg-slate-50 border-t flex justify-end space-x-2">
+          <button onClick={onClose} className="btn-secondary">取消</button>
+          <button onClick={handleConfirm} className="btn-primary" disabled={selectedPersonnel.size === 0}>確認發布</button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Edit Tag Modal Component
 const EditTagModal: React.FC<{
@@ -59,7 +138,8 @@ const EditTagModal: React.FC<{
             <div className="flex flex-wrap gap-2 mt-2">
               {availableColors.map(color => (
                 <button key={color} onClick={() => setTagColor(color)} className={`h-8 w-8 rounded-full border-2 ${tagColor === color ? 'border-sky-500 ring-2 ring-sky-200' : 'border-transparent'}`}>
-                   <Tag color={color} className="w-full h-full block rounded-full" />
+{/* FIX: Added a non-breaking space as a child to the Tag component to satisfy the required 'children' prop. */}
+                   <Tag color={color} className="w-full h-full block rounded-full">&nbsp;</Tag>
                 </button>
               ))}
             </div>
@@ -144,6 +224,7 @@ const Pagination: React.FC<{
 
 interface TrainingItemsPageProps {
   items: TrainingItem[];
+  personnelList: Personnel[];
   workAreaTags: TagData[];
   typeTags: TagData[];
   chapterTags: TagData[];
@@ -155,15 +236,17 @@ interface TrainingItemsPageProps {
   onDeleteTag: (tagType: TagType, value: string) => void;
   onEditTag: (tagType: TagType, tagId: string, newName: string, newColor: TagColor, replacementTagId?: string) => void;
   onImportItems: (data: string) => void;
+  onAssignItemsToPersonnel: (itemIds: Set<string>, personnelIds: Set<string>) => void;
 }
 
-const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, workAreaTags, typeTags, chapterTags, jobTitleTags, onAddItem, onUpdateItem, onDeleteItem, onDeleteSelected, onDeleteTag, onEditTag, onImportItems }) => {
+const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelList, workAreaTags, typeTags, chapterTags, jobTitleTags, onAddItem, onUpdateItem, onDeleteItem, onDeleteSelected, onDeleteTag, onEditTag, onImportItems, onAssignItemsToPersonnel }) => {
   const [newItemName, setNewItemName] = useState('');
   const [newItemWorkArea, setNewItemWorkArea] = useState('');
   const [newItemType, setNewItemType] = useState('');
   const [newItemChapter, setNewItemChapter] = useState('');
   const [newItemSection, setNewItemSection] = useState('');
   const [isImporterOpen, setIsImporterOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   
   const [filters, setFilters] = useState({ workArea: 'all', chapter: 'all' });
   const [selectedItems, setSelectedItems] = useState(new Set<string>());
@@ -182,6 +265,12 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, workAreaTa
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const existingTags = {
+    workArea: new Set(workAreaTags.map(t => t.value)),
+    typeTag: new Set(typeTags.map(t => t.value)),
+    chapter: new Set(chapterTags.map(t => t.value)),
+  };
+
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       const workAreaMatch = filters.workArea === 'all' || item.workArea === filters.workArea;
@@ -192,11 +281,17 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, workAreaTa
 
   const sortedItems = useMemo(() => 
     [...filteredItems].sort((a, b) => {
+        const isAUndefined = !existingTags.workArea.has(a.workArea) || !existingTags.typeTag.has(a.typeTag) || !existingTags.chapter.has(a.chapter);
+        const isBUndefined = !existingTags.workArea.has(b.workArea) || !existingTags.typeTag.has(b.typeTag) || !existingTags.chapter.has(b.chapter);
+
+        if (isAUndefined && !isBUndefined) return -1;
+        if (!isAUndefined && isBUndefined) return 1;
+
         const chapterCompare = a.chapter.localeCompare(b.chapter, undefined, { numeric: true });
         if (chapterCompare !== 0) return chapterCompare;
         return a.section.localeCompare(b.section, undefined, { numeric: true });
     }),
-    [filteredItems]
+    [filteredItems, existingTags]
   );
   
   const paginatedItems = useMemo(() => {
@@ -260,6 +355,11 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, workAreaTa
     setTagToEdit({ tag, type });
   };
 
+  const handleAssignConfirm = (personnelIds: Set<string>) => {
+    onAssignItemsToPersonnel(selectedItems, personnelIds);
+    setSelectedItems(new Set());
+  };
+
   const allTagsMap = {
     workArea: workAreaTags,
     type: typeTags,
@@ -275,6 +375,12 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, workAreaTa
         onImport={onImportItems}
         title="從試算表匯入學習項目"
         columns={['項目名稱', '工作區', '類型', '章節', '段落']}
+      />
+      <AssignToPersonnelModal 
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        onAssign={handleAssignConfirm}
+        personnelList={personnelList}
       />
       <EditTagModal
         isOpen={!!tagToEdit}
@@ -349,9 +455,14 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, workAreaTa
         {selectedItems.size > 0 && (
             <div className="bg-sky-50 border border-sky-200 rounded-md p-3 mb-4 flex justify-between items-center">
                 <span className="text-sm font-medium text-sky-800">已選取 {selectedItems.size} / {filteredItems.length} 個項目</span>
-                <button onClick={() => {onDeleteSelected(selectedItems); setSelectedItems(new Set())}} className="text-sm bg-red-500 text-white hover:bg-red-600 font-semibold py-1 px-3 rounded-md">
-                    刪除已選項目
-                </button>
+                <div className="flex space-x-2">
+                    <button onClick={() => {onDeleteSelected(selectedItems); setSelectedItems(new Set())}} className="text-sm bg-red-500 text-white hover:bg-red-600 font-semibold py-1 px-3 rounded-md">
+                        刪除
+                    </button>
+                    <button onClick={() => setIsAssignModalOpen(true)} className="text-sm bg-indigo-500 text-white hover:bg-indigo-600 font-semibold py-1 px-3 rounded-md">
+                        指派任務給人員
+                    </button>
+                </div>
             </div>
         )}
         <div className="overflow-x-auto">
@@ -368,8 +479,9 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, workAreaTa
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-200">
-              {paginatedItems.map(item => (
-                editingItemId === item.id ? (
+              {paginatedItems.map(item => {
+                const isUndefined = !existingTags.workArea.has(item.workArea) || !existingTags.typeTag.has(item.typeTag) || !existingTags.chapter.has(item.chapter);
+                return editingItemId === item.id ? (
                     <tr key={item.id} className="bg-sky-50">
                         <td className="px-4 py-4"></td>
                         <td className="px-6 py-4"><input type="text" value={editedItemData.name} onChange={e => setEditedItemData({...editedItemData, name: e.target.value})} className="input-style" /></td>
@@ -383,12 +495,12 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, workAreaTa
                         </td>
                     </tr>
                 ) : (
-                    <tr key={item.id} className={`${selectedItems.has(item.id) ? 'bg-sky-50' : ''}`}>
+                    <tr key={item.id} className={`${selectedItems.has(item.id) ? 'bg-sky-50' : ''} ${isUndefined ? 'bg-red-50' : ''}`}>
                       <td className="px-4 py-4"><input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500" checked={selectedItems.has(item.id)} onChange={() => handleToggleSelectItem(item.id)}/></td>
                       <td className="td-style font-medium text-slate-900">{item.name}</td>
-                      <td className="td-style"><Tag color={workAreaTags.find(t=>t.value===item.workArea)?.color}>{item.workArea}</Tag></td>
-                      <td className="td-style"><Tag color={typeTags.find(t=>t.value===item.typeTag)?.color}>{item.typeTag}</Tag></td>
-                      <td className="td-style"><Tag color={chapterTags.find(t=>t.value===item.chapter)?.color}>{item.chapter}</Tag></td>
+                      <td className="td-style"><Tag color={workAreaTags.find(t=>t.value===item.workArea)?.color || 'red'}>{item.workArea}</Tag></td>
+                      <td className="td-style"><Tag color={typeTags.find(t=>t.value===item.typeTag)?.color || 'red'}>{item.typeTag}</Tag></td>
+                      <td className="td-style"><Tag color={chapterTags.find(t=>t.value===item.chapter)?.color || 'red'}>{item.chapter}</Tag></td>
                       <td className="td-style"><Tag color="amber">{item.section}</Tag></td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                           <button onClick={() => handleStartEdit(item)} className="text-sky-600 hover:text-sky-900">編輯</button>
@@ -396,7 +508,7 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, workAreaTa
                       </td>
                     </tr>
                 )
-              ))}
+              })}
             </tbody>
           </table>
           {sortedItems.length === 0 && (
@@ -422,7 +534,7 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, workAreaTa
         .label-style { display: block; text-sm; font-medium; color: #475569; }
         .th-style { padding: 0.75rem 1.5rem; text-align: left; font-size: 0.75rem; line-height: 1rem; font-weight: 500; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
         .td-style { padding: 1rem 1.5rem; white-space: nowrap; font-size: 0.875rem; line-height: 1.25rem; color: #64748b; }
-        .btn-primary { padding: 0.5rem 1rem; border: 1px solid transparent; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 500; color: white; background-color: #0ea5e9; } .btn-primary:hover { background-color: #0284c7; }
+        .btn-primary { padding: 0.5rem 1rem; border: 1px solid transparent; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 500; color: white; background-color: #0ea5e9; } .btn-primary:hover { background-color: #0284c7; } .btn-primary:disabled { background-color: #7dd3fc; cursor: not-allowed; }
         .btn-secondary { padding: 0.5rem 1rem; border: 1px solid #cbd5e1; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 500; color: #334155; background-color: white; } .btn-secondary:hover { background-color: #f1f5f9; }
         :root {
             --color-slate-bg: #f1f5f9; --color-slate-text: #475569;

@@ -20,6 +20,10 @@ export interface TrainingAssignment {
   completed: boolean;
 }
 
+export interface DailySchedule {
+  [date: string]: string[]; // Key is "YYYY-MM-DD", value is array of TrainingItem IDs
+}
+
 export interface Personnel {
   id:string;
   name: string;
@@ -29,4 +33,5 @@ export interface Personnel {
   jobTitle: string;
   trainingPlan: TrainingAssignment[];
   status: '在職' | '支援' | '離職';
+  schedule: DailySchedule;
 }

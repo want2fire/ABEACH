@@ -48,7 +48,6 @@ const PersonnelCard: React.FC<{
 }> = ({ person, trainingItems, jobTitleTags, onUpdate, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editedPerson, setEditedPerson] = useState(person);
-    const isUndefined = !jobTitleTags.some(t => t.value === person.jobTitle);
 
     useEffect(() => {
         setEditedPerson(person);
@@ -76,7 +75,7 @@ const PersonnelCard: React.FC<{
                 <div className="space-y-4">
                     <input type="text" name="name" value={editedPerson.name} onChange={handleInputChange} placeholder="姓名" className="input-style w-full font-bold text-slate-900" />
                     <div className="relative">
-                      <select name="status" value={editedPerson.status} onChange={handleInputChange} className="input-style w-full appearance-none pr-8">
+                      <select name="status" value={editedPerson.status} onChange={handleInputChange} className="input-style w-full appearance-none pr-10">
                           <option value="在職">在職</option>
                           <option value="支援">支援</option>
                           <option value="離職">離職</option>
@@ -103,7 +102,7 @@ const PersonnelCard: React.FC<{
     }
 
     return (
-        <div className={`bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 relative group ${isUndefined ? 'border-2 border-red-400 bg-red-50' : ''}`}>
+        <div className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 relative group">
             <div className="absolute top-3 right-3 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => setIsEditing(true)} className="p-1 text-slate-500 hover:text-sky-600" aria-label={`Edit ${person.name}`}>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
@@ -123,7 +122,7 @@ const PersonnelCard: React.FC<{
             </div>
 
             <div className="flex flex-wrap gap-2 mt-3 mb-4">
-                <Tag color={jobTitleTags.find(t=>t.value===person.jobTitle)?.color || 'sky'}>{person.jobTitle}</Tag>
+                <Tag color={jobTitleTags.find(t=>t.value===person.jobTitle)?.color || 'red'}>{person.jobTitle}</Tag>
                 <Tag color={person.gender === '男性' ? 'indigo' : person.gender === '女性' ? 'pink' : 'purple'}>{person.gender}</Tag>
                 <Tag color="amber">{calculateAge(person.dob)} 歲</Tag>
                 <Tag color="green">{person.phone}</Tag>
@@ -152,7 +151,7 @@ interface PersonnelListPageProps {
   personnelList: Personnel[];
   trainingItems: TrainingItem[];
   jobTitleTags: TagData[];
-  onAddPersonnel: (person: Omit<Personnel, 'id' | 'trainingPlan' | 'status'>) => void;
+  onAddPersonnel: (person: Omit<Personnel, 'id' | 'trainingPlan' | 'status' | 'schedule'>) => void;
   onUpdatePersonnel: (person: Personnel) => void;
   onDeletePersonnel: (id: string) => void;
   onImportPersonnel: (data: string) => void;
@@ -180,21 +179,12 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
     }
   };
   
-  const isPersonIncomplete = (person: Personnel) => !jobTitleTags.some(t => t.value === person.jobTitle);
-
   const activePersonnel = personnelList.filter(p => p.status === '在職');
   const supportPersonnel = personnelList.filter(p => p.status === '支援');
   const resignedPersonnel = personnelList.filter(p => p.status === '離職');
 
   const renderPersonnelSection = (title: string, personnel: Personnel[], bgColorClass: string = '') => {
-    const sortedPersonnel = [...personnel].sort((a, b) => {
-        const aIncomplete = isPersonIncomplete(a);
-        const bIncomplete = isPersonIncomplete(b);
-        if (aIncomplete !== bIncomplete) {
-            return aIncomplete ? -1 : 1;
-        }
-        return a.name.localeCompare(b.name);
-    });
+    const sortedPersonnel = [...personnel].sort((a, b) => a.name.localeCompare(b.name));
     
     return (
         <div className={`mt-8 ${bgColorClass} p-4 sm:p-6 rounded-lg`}>
