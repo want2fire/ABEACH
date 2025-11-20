@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import { type Personnel, type TrainingItem, type TrainingAssignment, type TagData, type DailySchedule } from '../types';
+import { type Personnel, type TrainingItem, type TrainingAssignment, type TagData, type DailySchedule, type UserRole } from '../types';
 import ProgressBar from '../components/ProgressBar';
 import Tag from '../components/Tag';
 import Calendar from '../components/Calendar';
@@ -20,6 +20,7 @@ interface PersonnelDetailPageProps {
   personnelList: Personnel[];
   trainingItems: TrainingItem[];
   jobTitleTags: TagData[];
+  userRole: UserRole;
   onUpdatePersonnel: (updatedPersonnel: Personnel) => void;
   onUpdateSchedule: (personnelId: string, schedule: DailySchedule) => void;
 }
@@ -91,7 +92,7 @@ const ScheduleItemModal: React.FC<{
 };
 
 
-const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList, trainingItems, jobTitleTags, onUpdatePersonnel, onUpdateSchedule }) => {
+const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList, trainingItems, jobTitleTags, userRole, onUpdatePersonnel, onUpdateSchedule }) => {
   const { personnelId } = useParams<{ personnelId: string }>();
   
   const person = personnelList.find(p => p.id === personnelId);
@@ -105,6 +106,8 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
   
   // Lifted state for calendar's current month
   const [calendarDate, setCalendarDate] = useState(new Date());
+
+  const canManage = ['admin', 'duty'].includes(userRole);
 
   const workDays = useMemo(() => new Set(Object.keys(person?.schedule || {})), [person?.schedule]);
 
@@ -171,7 +174,7 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
         });
     } else {
         // In normal mode, open the daily task modal if it's a workday
-        if (workDays.has(dateStr)) {
+        if (workDays.has(dateStr) && canManage) {
             setSelectedScheduleDate(dateStr);
         }
     }
@@ -337,7 +340,7 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
                     onDateClick={handleDateClick}
                 />
                 
-                {!isScheduling && (
+                {!isScheduling && canManage && (
                     <div className="mt-4 pt-4 border-t border-slate-200">
                         <p className="text-xs text-slate-500 text-center">點擊已標示的上班日以編輯當日任務</p>
                         <button onClick={handleStartScheduling} className="mt-2 w-full text-white bg-indigo-600 hover:bg-indigo-700 font-medium rounded-md text-sm px-4 py-2 text-center transition-colors">

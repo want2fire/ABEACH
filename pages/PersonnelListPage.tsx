@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { type Personnel, type TrainingItem, type TagData } from '../types';
+import { type Personnel, type TrainingItem, type TagData, type UserRole } from '../types';
 import ProgressBar from '../components/ProgressBar';
 import Tag from '../components/Tag';
 import { TrashIcon } from '../components/icons/TrashIcon';
@@ -44,11 +44,14 @@ const PersonnelCard: React.FC<{
     person: Personnel;
     trainingItems: TrainingItem[];
     jobTitleTags: TagData[];
+    userRole: UserRole;
     onUpdate: (person: Personnel) => void;
     onDelete: (id: string) => void;
-}> = ({ person, trainingItems, jobTitleTags, onUpdate, onDelete }) => {
+}> = ({ person, trainingItems, jobTitleTags, userRole, onUpdate, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editedPerson, setEditedPerson] = useState(person);
+
+    const canEdit = ['admin', 'duty'].includes(userRole);
 
     useEffect(() => {
         setEditedPerson(person);
@@ -90,10 +93,14 @@ const PersonnelCard: React.FC<{
                         </div>
                     </div>
                     <div>
-                        <input type="text" name="jobTitle" value={editedPerson.jobTitle} onChange={handleInputChange} placeholder="職等" className="input-style w-full" list="job-titles-list" />
-                        <datalist id="job-titles-list">
-                            {jobTitleTags.map(tag => <option key={tag.id} value={tag.value} />)}
-                        </datalist>
+                        <label className="text-xs text-slate-500">職等</label>
+                        <select name="jobTitle" value={editedPerson.jobTitle} onChange={handleInputChange} className="input-style w-full">
+                             <option value="一般員工">一般員工</option>
+                             <option value="A TEAM">A TEAM</option>
+                             <option value="內場DUTY">內場DUTY</option>
+                             <option value="外場DUTY">外場DUTY</option>
+                             <option value="管理員">管理員</option>
+                        </select>
                     </div>
                     <input type="date" name="dob" value={editedPerson.dob} onChange={handleInputChange} className="input-style w-full" />
                     <input type="tel" name="phone" value={editedPerson.phone} onChange={handleInputChange} placeholder="電話" className="input-style w-full" />
@@ -109,14 +116,16 @@ const PersonnelCard: React.FC<{
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 relative group">
-            <div className="absolute top-3 right-3 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => setIsEditing(true)} className="p-1 text-slate-500 hover:text-sky-600" aria-label={`Edit ${person.name}`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
-                </button>
-                <button onClick={() => onDelete(person.id)} className="p-1 text-slate-500 hover:text-red-600" aria-label={`Delete ${person.name}`}>
-                    <TrashIcon className="w-5 h-5" />
-                </button>
-            </div>
+            {canEdit && (
+                <div className="absolute top-3 right-3 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => setIsEditing(true)} className="p-1 text-slate-500 hover:text-sky-600" aria-label={`Edit ${person.name}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
+                    </button>
+                    <button onClick={() => onDelete(person.id)} className="p-1 text-slate-500 hover:text-red-600" aria-label={`Delete ${person.name}`}>
+                        <TrashIcon className="w-5 h-5" />
+                    </button>
+                </div>
+            )}
             
             <div className="relative inline-block name-button-container self-start group">
                 <Link to={`/personnel/${person.id}`} className="inline-block bg-slate-100 text-slate-800 hover:bg-slate-200 transition-colors duration-200 font-bold py-1 px-4 rounded-lg text-xl" aria-label={`View details for ${person.name}`}>
@@ -157,21 +166,24 @@ interface PersonnelListPageProps {
   personnelList: Personnel[];
   trainingItems: TrainingItem[];
   jobTitleTags: TagData[];
+  userRole: UserRole;
   onAddPersonnel: (person: Omit<Personnel, 'id' | 'trainingPlan' | 'status' | 'schedule' | 'role'>) => void;
   onUpdatePersonnel: (person: Personnel) => void;
   onDeletePersonnel: (id: string) => void;
   onImportPersonnel: (data: any[][]) => void;
 }
 
-const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, trainingItems, jobTitleTags, onAddPersonnel, onUpdatePersonnel, onDeletePersonnel, onImportPersonnel }) => {
+const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, trainingItems, jobTitleTags, userRole, onAddPersonnel, onUpdatePersonnel, onDeletePersonnel, onImportPersonnel }) => {
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [isImporterOpen, setIsImporterOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [newGender, setNewGender] = useState<'男性' | '女性' | '其他'>('男性');
   const [newDob, setNewDob] = useState('');
   const [newPhone, setNewPhone] = useState('');
-  const [newJobTitle, setNewJobTitle] = useState('');
+  const [newJobTitle, setNewJobTitle] = useState('一般員工');
   const [newAccessCode, setNewAccessCode] = useState('');
+
+  const canManage = ['admin', 'duty'].includes(userRole);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,7 +203,7 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
       setNewGender('男性');
       setNewDob('');
       setNewPhone('');
-      setNewJobTitle('');
+      setNewJobTitle('一般員工');
       setNewAccessCode('');
       setIsFormVisible(false);
     }
@@ -215,6 +227,7 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
                             person={person} 
                             trainingItems={trainingItems}
                             jobTitleTags={jobTitleTags}
+                            userRole={userRole}
                             onUpdate={onUpdatePersonnel}
                             onDelete={onDeletePersonnel}
                         />
@@ -243,23 +256,25 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
       `}</style>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-slate-900">人員名單</h1>
-        <div className="flex items-center space-x-2">
-            <button 
-              onClick={() => setIsImporterOpen(true)}
-              className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              匯入資料
-            </button>
-            <button 
-              onClick={() => setIsFormVisible(!isFormVisible)}
-              className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
-            >
-              {isFormVisible ? '取消新增' : '新增人員'}
-            </button>
-        </div>
+        {canManage && (
+            <div className="flex items-center space-x-2">
+                <button 
+                onClick={() => setIsImporterOpen(true)}
+                className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                匯入資料
+                </button>
+                <button 
+                onClick={() => setIsFormVisible(!isFormVisible)}
+                className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
+                >
+                {isFormVisible ? '取消新增' : '新增人員'}
+                </button>
+            </div>
+        )}
       </div>
       
-      {isFormVisible && (
+      {isFormVisible && canManage && (
         <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
           <h2 className="text-xl font-semibold mb-4">新增人員資料</h2>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -272,10 +287,13 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
             <input type="date" value={newDob} onChange={e => setNewDob(e.target.value)} required className="input-style" />
             <input type="tel" value={newPhone} onChange={e => setNewPhone(e.target.value)} placeholder="電話" required className="input-style" />
             <div>
-                <input type="text" value={newJobTitle} onChange={e => setNewJobTitle(e.target.value)} placeholder="職等 (例如: 正職)" required className="input-style" list="job-titles-list-add" />
-                <datalist id="job-titles-list-add">
-                    {jobTitleTags.map(tag => <option key={tag.id} value={tag.value} />)}
-                </datalist>
+                <select value={newJobTitle} onChange={e => setNewJobTitle(e.target.value)} className="input-style" required>
+                    <option value="一般員工">一般員工</option>
+                    <option value="A TEAM">A TEAM</option>
+                    <option value="內場DUTY">內場DUTY</option>
+                    <option value="外場DUTY">外場DUTY</option>
+                    <option value="管理員">管理員</option>
+                </select>
             </div>
             <div>
                 <input type="text" value={newAccessCode} onChange={e => setNewAccessCode(e.target.value)} placeholder="身分證末四碼 (預設為電話後4碼)" className="input-style" maxLength={4} />

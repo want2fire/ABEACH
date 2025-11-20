@@ -15,6 +15,15 @@ const Header: React.FC<HeaderProps> = ({ userName, userRole, onSignOut }) => {
   const inactiveLinkClass = "text-sky-100 hover:bg-sky-500 hover:text-white";
   const linkClasses = "px-3 py-2 rounded-md text-sm font-medium transition-colors";
 
+  const getRoleName = (role: string) => {
+      switch(role) {
+          case 'admin': return '管理員';
+          case 'duty': return 'Duty';
+          case 'user': return '一般員工';
+          default: return '員工';
+      }
+  };
+
   const navLinks = (
     <>
       <NavLink
@@ -58,7 +67,7 @@ const Header: React.FC<HeaderProps> = ({ userName, userRole, onSignOut }) => {
             {userName && (
               <div className="hidden md:flex items-center space-x-3">
                 <span className="text-sm text-sky-100 font-medium">{userName}</span>
-                {userRole && <span className="text-xs bg-sky-800 px-2 py-0.5 rounded text-sky-100">{userRole === 'admin' ? '店長/管理員' : '員工'}</span>}
+                {userRole && <span className="text-xs bg-sky-800 px-2 py-0.5 rounded text-sky-100">{getRoleName(userRole)}</span>}
                 <button 
                   onClick={onSignOut}
                   className="text-xs bg-sky-800 hover:bg-sky-900 text-white py-1 px-3 rounded"
@@ -102,7 +111,7 @@ const Header: React.FC<HeaderProps> = ({ userName, userRole, onSignOut }) => {
              <div className="pt-4 pb-3 border-t border-sky-600 px-4">
                <div className="text-sm text-sky-200 mb-2 flex items-center gap-2">
                   {userName}
-                  {userRole && <span className="text-xs bg-sky-800 px-2 py-0.5 rounded text-sky-100">{userRole === 'admin' ? '管理員' : '員工'}</span>}
+                  {userRole && <span className="text-xs bg-sky-800 px-2 py-0.5 rounded text-sky-100">{getRoleName(userRole)}</span>}
                </div>
                <button 
                   onClick={onSignOut}

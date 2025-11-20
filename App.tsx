@@ -282,7 +282,7 @@ const App: React.FC = () => {
   const handleAddPersonnel = async (person: Omit<Personnel, 'id' | 'trainingPlan' | 'status' | 'schedule' | 'role'>) => {
     await addTag('job', person.jobTitle);
     
-    // Default role is 'user', default password is '0000' or what user provided
+    // Default role is 'user'
     const { error } = await supabase.from('personnel').insert({
       id: crypto.randomUUID(),
       name: person.name,
@@ -431,7 +431,6 @@ const App: React.FC = () => {
             });
         }
         
-        // Batch insert tags just in case there are many
         const BATCH_SIZE = 50;
         if (newTagsPayload.length > 0) {
              for (let i = 0; i < newTagsPayload.length; i += BATCH_SIZE) {
@@ -441,19 +440,16 @@ const App: React.FC = () => {
         }
     };
 
-    // Create tags first
     await insertNewTags('workArea', tagsToCreate.workArea);
     await insertNewTags('type', tagsToCreate.type);
     await insertNewTags('chapter', tagsToCreate.chapter);
 
-    // Then create items with batch processing
     if (newItems.length > 0) {
         const BATCH_SIZE = 50;
         let successCount = 0;
         let failCount = 0;
         
         setLoading(true);
-        // Process in batches to avoid payload limits and timeouts
         for (let i = 0; i < newItems.length; i += BATCH_SIZE) {
              const chunk = newItems.slice(i, i + BATCH_SIZE);
              const { error } = await supabase.from('training_items').insert(chunk);
@@ -478,17 +474,24 @@ const App: React.FC = () => {
 
   const handleImportPersonnel = async (rows: any[][]) => {
     const newPeople: any[] = [];
+    const allowedTitles = new Set(['外場DUTY', '內場DUTY', 'A TEAM', '管理員', '一般員工']);
+    
     for (const row of rows) {
       try {
         if (!Array.isArray(row) || row.length < 5) continue;
-        // Updated to allow access code in 6th column, default to last 4 digits of phone if missing
-        const [name, genderStr, dob, phone, jobTitle, accessCode] = row.map(c => String(c || '').trim());
+        const [name, genderStr, dob, phone, rawJobTitle, accessCode] = row.map(c => String(c || '').trim());
         
         // Skip header row
         if (name === '姓名' && phone === '電話') continue;
 
-        if (name && dob && phone && jobTitle) {
-            await addTag('job', jobTitle, 'red');
+        if (name && dob && phone) {
+            // Validate Job Title, fallback to '一般員工'
+            let jobTitle = rawJobTitle;
+            if (!allowedTitles.has(jobTitle)) {
+                jobTitle = '一般員工';
+            }
+            
+            await addTag('job', jobTitle, 'red'); // Keep tags for coloring purposes
             const defaultCode = accessCode || (phone.length >= 4 ? phone.slice(-4) : '0000');
             
             newPeople.push({
@@ -506,7 +509,6 @@ const App: React.FC = () => {
       } catch (e) { console.error(e); }
     }
     
-    // Batch insert personnel
     if (newPeople.length > 0) {
         const BATCH_SIZE = 50;
         let successCount = 0;
@@ -563,6 +565,7 @@ const App: React.FC = () => {
               personnelList={personnelList} 
               trainingItems={trainingItems}
               jobTitleTags={jobTitleTags}
+              userRole={currentUser.role}
               onAddPersonnel={handleAddPersonnel}
               onUpdatePersonnel={handleUpdatePersonnel}
               onDeletePersonnel={handleDeletePersonnel}
@@ -577,6 +580,7 @@ const App: React.FC = () => {
               typeTags={typeTags}
               chapterTags={chapterTags}
               jobTitleTags={jobTitleTags}
+              userRole={currentUser.role}
               onAddItem={handleAddTrainingItem} 
               onUpdateItem={handleUpdateTrainingItem}
               onDeleteItem={handleDeleteTrainingItem}
@@ -592,6 +596,7 @@ const App: React.FC = () => {
               personnelList={personnelList}
               trainingItems={trainingItems}
               jobTitleTags={jobTitleTags}
+              userRole={currentUser.role}
               onUpdatePersonnel={handleUpdatePersonnel}
               onUpdateSchedule={handleUpdateSchedule}
             />} 

@@ -179,7 +179,7 @@ const Importer: React.FC<ImporterProps> = ({ isOpen, onClose, onImport, title, c
                             value={url}
                             onChange={(e) => setUrl(e.target.value)}
                             placeholder="https://docs.google.com/spreadsheets/d/..."
-                            className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-sky-500 focus:border-sky-500"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-sky-500 focus:border-sky-500 bg-white text-slate-900"
                         />
                         <p className="text-xs text-slate-500 mt-2">
                             提示：如果是 Google 試算表，請確保權限已開啟為「知道連結的人均可檢視」。

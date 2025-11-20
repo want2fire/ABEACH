@@ -88,7 +88,7 @@ const UserManagementPage: React.FC = () => {
                         type="text" 
                         value={p.access_code || ''} 
                         onChange={(e) => handleUpdate(p.id, 'access_code', e.target.value)}
-                        className="border border-slate-300 rounded px-2 py-1 w-20 text-center focus:ring-sky-500 focus:border-sky-500"
+                        className="border border-slate-300 rounded px-2 py-1 w-20 text-center focus:ring-sky-500 focus:border-sky-500 bg-white text-slate-900"
                         maxLength={4}
                      />
                   </td>
@@ -96,9 +96,10 @@ const UserManagementPage: React.FC = () => {
                     <select
                       value={p.role || 'user'}
                       onChange={(e) => handleUpdate(p.id, 'role', e.target.value)}
-                      className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm rounded-md border ${p.role === 'admin' ? 'bg-sky-50 font-bold text-sky-700' : 'bg-white'}`}
+                      className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm rounded-md border ${p.role === 'admin' ? 'bg-red-50 font-bold text-red-700' : p.role === 'duty' ? 'bg-sky-50 font-bold text-sky-700' : 'bg-white'}`}
                     >
                       <option value="user">一般員工 (User)</option>
+                      <option value="duty">Duty (管理任務)</option>
                       <option value="admin">管理員 (Admin)</option>
                     </select>
                   </td>
