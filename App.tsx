@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { type Personnel, type TrainingItem, type TagData, type TagColor, type DailySchedule, type TrainingAssignment } from './types';
@@ -12,9 +13,9 @@ import { supabase } from './lib/supabaseClient';
 type TagType = 'workArea' | 'type' | 'chapter' | 'job';
 
 const App: React.FC = () => {
-  const [session, setSession] = useState<any>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<Personnel | null>(null);
   const [loading, setLoading] = useState(true);
+  
   const [trainingItems, setTrainingItems] = useState<TrainingItem[]>([]);
   const [personnelList, setPersonnelList] = useState<Personnel[]>([]);
 
@@ -31,49 +32,55 @@ const App: React.FC = () => {
     job: { tags: jobTitleTags, setTags: setJobTitleTags },
   };
 
-  // Auth Listener
+  // Initial Load & Session Check
   useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) fetchData(session.user.id);
-      else setLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) {
-        fetchData(session.user.id);
+    const initApp = async () => {
+      setLoading(true);
+      
+      // Check for stored session
+      const storedUserId = localStorage.getItem('app_user_id');
+      if (storedUserId) {
+        // Fetch user details to ensure validity and get latest role
+        const { data, error } = await supabase
+          .from('personnel')
+          .select('*')
+          .eq('id', storedUserId)
+          .single();
+          
+        if (data && !error) {
+          // Temporary object to set state immediately while full data loads
+          setCurrentUser(data as any); 
+          fetchData();
+        } else {
+          // Invalid session
+          localStorage.removeItem('app_user_id');
+          setLoading(false);
+        }
       } else {
-        setTrainingItems([]);
-        setPersonnelList([]);
-        setUserRole(null);
         setLoading(false);
       }
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    initApp();
   }, []);
 
+  const handleLogin = (user: Personnel) => {
+    localStorage.setItem('app_user_id', user.id);
+    setCurrentUser(user);
+    fetchData();
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('app_user_id');
+    setCurrentUser(null);
+    setTrainingItems([]);
+    setPersonnelList([]);
+  };
+
   // Fetch all data from Supabase
-  const fetchData = async (userId: string) => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-
-      // 0. Fetch User Role
-      const { data: profileData } = await supabase
-        .from('user_profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-      
-      if (profileData) {
-        setUserRole(profileData.role);
-      } else {
-        setUserRole('user'); // Default fallback
-      }
 
       // 1. Fetch Tags
       const { data: tagsData } = await supabase.from('tags').select('*');
@@ -113,7 +120,7 @@ const App: React.FC = () => {
               completed: prog.completed
             })) || [];
 
-          // Map Schedule: Convert flat rows to { date: [itemIds] }
+          // Map Schedule
           const mySchedule: DailySchedule = {};
           scheduleData
             ?.filter((s: any) => s.personnel_id === p.id)
@@ -132,11 +139,19 @@ const App: React.FC = () => {
             phone: p.phone,
             jobTitle: p.job_title,
             status: p.status as any,
+            access_code: p.access_code || '0000',
+            role: p.role || 'user',
             trainingPlan: myProgress,
             schedule: mySchedule
           };
         });
         setPersonnelList(mappedPersonnel);
+        
+        // Update current user ref in case data changed
+        if (currentUser) {
+            const updatedSelf = mappedPersonnel.find(p => p.id === currentUser.id);
+            if (updatedSelf) setCurrentUser(updatedSelf);
+        }
       }
 
     } catch (error) {
@@ -152,7 +167,6 @@ const App: React.FC = () => {
     if (!value || !value.trim()) return;
     const { tags } = tagStateMap[type];
     
-    // Avoid duplicate call if exists locally
     if (tags.some(t => t.value.toLowerCase() === value.toLowerCase())) return;
 
     let newColor: TagColor;
@@ -171,14 +185,14 @@ const App: React.FC = () => {
       color: newColor
     });
 
-    if (!error && session) fetchData(session.user.id);
+    if (!error) fetchData();
   };
 
   const deleteTag = async (type: TagType, value: string) => {
     const tag = tagStateMap[type].tags.find(t => t.value === value);
-    if (tag && session) {
+    if (tag) {
       await supabase.from('tags').delete().eq('id', tag.id);
-      fetchData(session.user.id);
+      fetchData();
     }
   };
   
@@ -222,7 +236,7 @@ const App: React.FC = () => {
           }
       }
     }
-    if(session) fetchData(session.user.id);
+    fetchData();
   };
 
   // --- Training Items Management ---
@@ -241,7 +255,7 @@ const App: React.FC = () => {
       section: item.section
     });
 
-    if (!error && session) fetchData(session.user.id);
+    if (!error) fetchData();
   };
 
   const handleUpdateTrainingItem = async (updatedItem: TrainingItem) => {
@@ -253,24 +267,25 @@ const App: React.FC = () => {
       section: updatedItem.section
     }).eq('id', updatedItem.id);
 
-    if(session) fetchData(session.user.id);
+    fetchData();
   };
   
   const handleDeleteTrainingItem = async (id: string) => {
     await supabase.from('training_items').delete().eq('id', id);
-    if(session) fetchData(session.user.id);
+    fetchData();
   };
 
   const handleDeleteSelectedTrainingItems = async (idsToDelete: Set<string>) => {
     await supabase.from('training_items').delete().in('id', Array.from(idsToDelete));
-    if(session) fetchData(session.user.id);
+    fetchData();
   };
 
   // --- Personnel Management ---
 
-  const handleAddPersonnel = async (person: Omit<Personnel, 'id' | 'trainingPlan' | 'status' | 'schedule'>) => {
+  const handleAddPersonnel = async (person: Omit<Personnel, 'id' | 'trainingPlan' | 'status' | 'schedule' | 'role'>) => {
     await addTag('job', person.jobTitle);
     
+    // Default role is 'user', default password is '0000' or what user provided
     const { error } = await supabase.from('personnel').insert({
       id: crypto.randomUUID(),
       name: person.name,
@@ -278,10 +293,12 @@ const App: React.FC = () => {
       dob: person.dob,
       phone: person.phone,
       job_title: person.jobTitle,
-      status: '在職'
+      status: '在職',
+      access_code: person.access_code,
+      role: 'user'
     });
     
-    if (!error && session) fetchData(session.user.id);
+    if (!error) fetchData();
   };
 
   const handleUpdatePersonnel = async (updatedPersonnel: Personnel) => {
@@ -291,7 +308,9 @@ const App: React.FC = () => {
       dob: updatedPersonnel.dob,
       phone: updatedPersonnel.phone,
       job_title: updatedPersonnel.jobTitle,
-      status: updatedPersonnel.status
+      status: updatedPersonnel.status,
+      access_code: updatedPersonnel.access_code, // Support updating code
+      role: updatedPersonnel.role
     }).eq('id', updatedPersonnel.id);
 
     const progressUpdates = updatedPersonnel.trainingPlan.map(plan => ({
@@ -304,12 +323,12 @@ const App: React.FC = () => {
         await supabase.from('training_progress').upsert(progressUpdates);
     }
 
-    if(session) fetchData(session.user.id);
+    fetchData();
   };
 
   const handleDeletePersonnel = async (id: string) => {
     await supabase.from('personnel').delete().eq('id', id);
-    if(session) fetchData(session.user.id);
+    fetchData();
   };
 
   const handleAssignItemsToPersonnel = async (itemIds: Set<string>, personnelIds: Set<string>) => {
@@ -327,7 +346,7 @@ const App: React.FC = () => {
     if (inserts.length > 0) {
         await supabase.from('training_progress').upsert(inserts, { onConflict: 'personnel_id, item_id', ignoreDuplicates: true });
     }
-    if(session) fetchData(session.user.id);
+    fetchData();
   };
   
   const handleUpdateSchedule = async (personnelId: string, schedule: DailySchedule) => {
@@ -347,23 +366,19 @@ const App: React.FC = () => {
     if (inserts.length > 0) {
         await supabase.from('schedules').insert(inserts);
     }
-    if(session) fetchData(session.user.id);
+    fetchData();
   };
 
-  // Updated to accept 2D array from Importer
   const handleImportTrainingItems = async (rows: any[][]) => {
     const newItems = [];
-    
     for (const row of rows) {
       try {
         if (!Array.isArray(row) || row.length < 5) continue;
         const [name, workArea, typeTag, chapter, section] = row.map(c => String(c || '').trim());
-        
         if (name && workArea && typeTag && chapter && section) {
            await addTag('workArea', workArea, 'red');
            await addTag('type', typeTag, 'red');
            await addTag('chapter', chapter, 'red');
-           
            newItems.push({
              id: crypto.randomUUID(),
              name,
@@ -375,24 +390,24 @@ const App: React.FC = () => {
         }
       } catch (e) { console.error(e); }
     }
-
     if (newItems.length > 0) {
         await supabase.from('training_items').insert(newItems);
-        if(session) fetchData(session.user.id);
+        fetchData();
     }
   };
 
-  // Updated to accept 2D array from Importer
   const handleImportPersonnel = async (rows: any[][]) => {
     const newPeople = [];
-
     for (const row of rows) {
       try {
         if (!Array.isArray(row) || row.length < 5) continue;
-        const [name, genderStr, dob, phone, jobTitle] = row.map(c => String(c || '').trim());
+        // Updated to allow access code in 6th column, default to last 4 digits of phone if missing
+        const [name, genderStr, dob, phone, jobTitle, accessCode] = row.map(c => String(c || '').trim());
         
         if (name && dob && phone && jobTitle) {
             await addTag('job', jobTitle, 'red');
+            const defaultCode = accessCode || (phone.length >= 4 ? phone.slice(-4) : '0000');
+            
             newPeople.push({
                 id: crypto.randomUUID(),
                 name,
@@ -400,15 +415,16 @@ const App: React.FC = () => {
                 dob,
                 phone,
                 job_title: jobTitle,
-                status: '在職'
+                status: '在職',
+                access_code: defaultCode,
+                role: 'user'
             });
         }
       } catch (e) { console.error(e); }
     }
-    
     if (newPeople.length > 0) {
         await supabase.from('personnel').insert(newPeople);
-        if(session) fetchData(session.user.id);
+        fetchData();
     }
   };
 
@@ -426,13 +442,13 @@ const App: React.FC = () => {
     );
   }
 
-  if (!session) {
-    return <AuthPage />;
+  if (!currentUser) {
+    return <AuthPage onLogin={handleLogin} />;
   }
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <Header userEmail={session.user.email} userRole={userRole} />
+      <Header userName={currentUser.name} userRole={currentUser.role} onSignOut={handleLogout} />
       <main>
         <Routes>
           <Route path="/" element={
@@ -474,7 +490,7 @@ const App: React.FC = () => {
             />} 
           />
           <Route path="/user-management" element={
-             userRole === 'admin' ? <UserManagementPage /> : <Navigate to="/" />
+             currentUser.role === 'admin' ? <UserManagementPage /> : <Navigate to="/" />
           } />
         </Routes>
       </main>

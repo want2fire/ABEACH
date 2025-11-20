@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { type Personnel, type TrainingItem, type TagData } from '../types';
@@ -74,15 +75,19 @@ const PersonnelCard: React.FC<{
                 <style>{`.animate-pulse-once { animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1); } @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .8; } }`}</style>
                 <div className="space-y-4">
                     <input type="text" name="name" value={editedPerson.name} onChange={handleInputChange} placeholder="姓名" className="input-style w-full font-bold text-slate-900" />
-                    <div className="relative">
-                      <select name="status" value={editedPerson.status} onChange={handleInputChange} className="input-style w-full appearance-none pr-10">
-                          <option value="在職">在職</option>
-                          <option value="支援">支援</option>
-                          <option value="離職">離職</option>
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-700">
-                          <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                      </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <label className="text-xs text-slate-500">狀態</label>
+                            <select name="status" value={editedPerson.status} onChange={handleInputChange} className="input-style w-full">
+                                <option value="在職">在職</option>
+                                <option value="支援">支援</option>
+                                <option value="離職">離職</option>
+                            </select>
+                        </div>
+                        <div>
+                             <label className="text-xs text-slate-500">身分證末四碼 (登入用)</label>
+                             <input type="text" name="access_code" value={editedPerson.access_code} onChange={handleInputChange} className="input-style w-full" maxLength={4} />
+                        </div>
                     </div>
                     <div>
                         <input type="text" name="jobTitle" value={editedPerson.jobTitle} onChange={handleInputChange} placeholder="職等" className="input-style w-full" list="job-titles-list" />
@@ -92,6 +97,7 @@ const PersonnelCard: React.FC<{
                     </div>
                     <input type="date" name="dob" value={editedPerson.dob} onChange={handleInputChange} className="input-style w-full" />
                     <input type="tel" name="phone" value={editedPerson.phone} onChange={handleInputChange} placeholder="電話" className="input-style w-full" />
+                    
                     <div className="flex justify-end space-x-2 pt-4">
                         <button onClick={handleCancel} className="btn-secondary">取消</button>
                         <button onClick={handleSave} className="btn-primary">儲存</button>
@@ -151,7 +157,7 @@ interface PersonnelListPageProps {
   personnelList: Personnel[];
   trainingItems: TrainingItem[];
   jobTitleTags: TagData[];
-  onAddPersonnel: (person: Omit<Personnel, 'id' | 'trainingPlan' | 'status' | 'schedule'>) => void;
+  onAddPersonnel: (person: Omit<Personnel, 'id' | 'trainingPlan' | 'status' | 'schedule' | 'role'>) => void;
   onUpdatePersonnel: (person: Personnel) => void;
   onDeletePersonnel: (id: string) => void;
   onImportPersonnel: (data: any[][]) => void;
@@ -165,16 +171,28 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
   const [newDob, setNewDob] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newJobTitle, setNewJobTitle] = useState('');
+  const [newAccessCode, setNewAccessCode] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newName.trim() && newDob && newPhone.trim() && newJobTitle.trim()) {
-      onAddPersonnel({ name: newName, gender: newGender, dob: newDob, phone: newPhone, jobTitle: newJobTitle });
+      const code = newAccessCode.trim() || (newPhone.length >= 4 ? newPhone.slice(-4) : '0000');
+      
+      onAddPersonnel({ 
+          name: newName, 
+          gender: newGender, 
+          dob: newDob, 
+          phone: newPhone, 
+          jobTitle: newJobTitle,
+          access_code: code
+      });
+      
       setNewName('');
       setNewGender('男性');
       setNewDob('');
       setNewPhone('');
       setNewJobTitle('');
+      setNewAccessCode('');
       setIsFormVisible(false);
     }
   };
@@ -216,7 +234,7 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
         onClose={() => setIsImporterOpen(false)}
         onImport={onImportPersonnel}
         title="從試算表匯入人員資料"
-        columns={['姓名', '性別', '出生年月日 (YYYY-MM-DD)', '電話', '職等']}
+        columns={['姓名', '性別', '出生年月日 (YYYY-MM-DD)', '電話', '職等', '身分證末四碼(選填)']}
       />
       <style>{`
         .input-style { display: block; width: 100%; padding: 0.5rem 0.75rem; background-color: white; border: 1px solid #cbd5e1; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
@@ -253,11 +271,14 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
             </select>
             <input type="date" value={newDob} onChange={e => setNewDob(e.target.value)} required className="input-style" />
             <input type="tel" value={newPhone} onChange={e => setNewPhone(e.target.value)} placeholder="電話" required className="input-style" />
-            <div className="md:col-span-2">
+            <div>
                 <input type="text" value={newJobTitle} onChange={e => setNewJobTitle(e.target.value)} placeholder="職等 (例如: 正職)" required className="input-style" list="job-titles-list-add" />
                 <datalist id="job-titles-list-add">
                     {jobTitleTags.map(tag => <option key={tag.id} value={tag.value} />)}
                 </datalist>
+            </div>
+            <div>
+                <input type="text" value={newAccessCode} onChange={e => setNewAccessCode(e.target.value)} placeholder="身分證末四碼 (預設為電話後4碼)" className="input-style" maxLength={4} />
             </div>
             <button type="submit" className="md:col-span-2 justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">確認新增</button>
           </form>

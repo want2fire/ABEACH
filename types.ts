@@ -1,3 +1,4 @@
+
 export type TagColor = 'slate' | 'sky' | 'green' | 'amber' | 'red' | 'indigo' | 'pink' | 'purple';
 
 export interface TagData {
@@ -34,6 +35,8 @@ export interface Personnel {
   trainingPlan: TrainingAssignment[];
   status: '在職' | '支援' | '離職';
   schedule: DailySchedule;
+  access_code: string; // Login password (ID last 4 digits)
+  role: 'admin' | 'user'; // Permission level
 }
 
 export interface UserProfile {

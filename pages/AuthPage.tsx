@@ -1,45 +1,40 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { Personnel } from '../types';
 
-const AuthPage: React.FC = () => {
+interface AuthPageProps {
+  onLogin: (user: Personnel) => void;
+}
+
+const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [message, setMessage] = useState<{ type: 'error' | 'success', text: string } | null>(null);
+  const [name, setName] = useState('');
+  const [accessCode, setAccessCode] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setMessage(null);
+    setError(null);
 
     try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        // Login successful, App.tsx auth listener will handle redirect
-      } else {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
+      // Verify against the personnel table
+      const { data, error } = await supabase
+        .from('personnel')
+        .select('*')
+        .eq('name', name.trim())
+        .eq('access_code', accessCode.trim())
+        .single();
 
-        // Check if session was created immediately (means Confirm Email is disabled in Supabase)
-        if (data.session) {
-             // Auto-login successful, no need to show message
-        } else if (data.user && !data.session) {
-            // User created but session is null, meaning email verification is required
-            setMessage({ type: 'success', text: '註冊成功！請檢查您的信箱以驗證帳號。' });
-            setIsLogin(true); // Switch back to login view
-        }
+      if (error || !data) {
+        throw new Error('找不到此使用者或驗證碼錯誤');
       }
-    } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || '發生錯誤，請稍後再試。' });
+
+      onLogin(data as unknown as Personnel);
+      
+    } catch (err: any) {
+      setError(err.message || '登入失敗，請檢查姓名與身分證末四碼');
     } finally {
       setIsLoading(false);
     }
@@ -50,63 +45,51 @@ const AuthPage: React.FC = () => {
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
         <div className="bg-sky-600 p-6 text-center">
           <h1 className="text-2xl font-bold text-white">餐飲業學習進度追蹤器</h1>
-          <p className="text-sky-100 mt-2">請先登入以存取資料</p>
+          <p className="text-sky-100 mt-2">請輸入姓名與身分證末四碼登入</p>
         </div>
         
         <div className="p-8">
-          <div className="flex border-b border-slate-200 mb-6">
-            <button
-              className={`flex-1 pb-2 text-center font-medium ${isLogin ? 'text-sky-600 border-b-2 border-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
-              onClick={() => { setIsLogin(true); setMessage(null); }}
-            >
-              登入
-            </button>
-            <button
-              className={`flex-1 pb-2 text-center font-medium ${!isLogin ? 'text-sky-600 border-b-2 border-sky-600' : 'text-slate-500 hover:text-slate-700'}`}
-              onClick={() => { setIsLogin(false); setMessage(null); }}
-            >
-              註冊
-            </button>
-          </div>
-
-          {message && (
-            <div className={`mb-4 p-3 rounded text-sm ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-              {message.text}
+          {error && (
+            <div className="mb-4 p-3 rounded text-sm bg-red-100 text-red-700">
+              {error}
             </div>
           )}
 
-          <form onSubmit={handleAuth} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">電子郵件</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">姓名</label>
               <input
-                type="email"
+                type="text"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
-                placeholder="your@email.com"
+                placeholder="請輸入完整姓名"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">密碼</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">身分證末四碼 (作為密碼)</label>
               <input
                 type="password"
                 required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={accessCode}
+                onChange={(e) => setAccessCode(e.target.value)}
                 className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
-                placeholder="********"
-                minLength={6}
+                placeholder="例如：1234"
+                maxLength={4}
               />
             </div>
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-sky-600 text-white py-2 px-4 rounded-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+              className="w-full bg-sky-600 text-white py-2 px-4 rounded-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 disabled:opacity-50 transition-colors font-bold"
             >
-              {isLoading ? '處理中...' : (isLogin ? '登入' : '註冊')}
+              {isLoading ? '驗證中...' : '登入系統'}
             </button>
           </form>
+          <p className="text-xs text-slate-500 mt-6 text-center">
+            若無法登入，請聯繫店長或管理員確認您的資料。
+          </p>
         </div>
       </div>
     </div>
