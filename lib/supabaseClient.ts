@@ -4,12 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 // 這是您提供的 Supabase URL
 const supabaseUrl = 'https://hifevpmciaxhyhyowjyj.supabase.co';
 
-// 請將您的 Supabase Anon Key (Public) 貼在下方引號中
-// 如果您已設定環境變數，程式會優先讀取 process.env.SUPABASE_KEY
-const supabaseKey = process.env.SUPABASE_KEY || '您的_SUPABASE_ANON_KEY_貼在這裡';
-
-if (!supabaseKey || supabaseKey === '您的_SUPABASE_ANON_KEY_貼在這裡') {
-  console.warn('Supabase Key 尚未設定。請在 lib/supabaseClient.ts 中填入 Key 以確保功能正常運作。');
-}
+// 這是您提供的正確 Supabase Anon Key (JWT)
+const supabaseKey = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpZmV2cG1jaWF4aHloeW93anlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI0ODk4MzcsImV4cCI6MjA3ODA2NTgzN30.yaTPV6r7CYBHEsojRmLkkFzu4AM2mF4qWR3pkY6GAZU';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
