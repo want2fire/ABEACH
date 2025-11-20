@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { type Personnel, type TrainingItem, type TagData, type TagColor, type DailySchedule, type TrainingAssignment } from './types';
 import Header from './components/Header';
 import PersonnelListPage from './pages/PersonnelListPage';
@@ -8,6 +8,7 @@ import TrainingItemsPage from './pages/TrainingItemsPage';
 import PersonnelDetailPage from './pages/PersonnelDetailPage';
 import AuthPage from './pages/AuthPage';
 import UserManagementPage from './pages/UserManagementPage';
+import HomePage from './pages/HomePage';
 import { supabase } from './lib/supabaseClient';
 
 type TagType = 'workArea' | 'type' | 'chapter' | 'job';
@@ -15,6 +16,7 @@ type TagType = 'workArea' | 'type' | 'chapter' | 'job';
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Personnel | null>(null);
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
   
   const [trainingItems, setTrainingItems] = useState<TrainingItem[]>([]);
   const [personnelList, setPersonnelList] = useState<Personnel[]>([]);
@@ -40,7 +42,6 @@ const App: React.FC = () => {
       // Check for stored session
       const storedUserId = localStorage.getItem('app_user_id');
       if (storedUserId) {
-        // Fetch user details to ensure validity and get latest role
         const { data, error } = await supabase
           .from('personnel')
           .select('*')
@@ -48,11 +49,9 @@ const App: React.FC = () => {
           .single();
           
         if (data && !error) {
-          // Temporary object to set state immediately while full data loads
           setCurrentUser(data as any); 
           fetchData();
         } else {
-          // Invalid session
           localStorage.removeItem('app_user_id');
           setLoading(false);
         }
@@ -111,7 +110,6 @@ const App: React.FC = () => {
 
       if (peopleData) {
         const mappedPersonnel: Personnel[] = peopleData.map((p: any) => {
-          // Map Progress
           const myProgress = progressData
             ?.filter((prog: any) => prog.personnel_id === p.id)
             .map((prog: any) => ({
@@ -119,7 +117,6 @@ const App: React.FC = () => {
               completed: prog.completed
             })) || [];
 
-          // Map Schedule
           const mySchedule: DailySchedule = {};
           scheduleData
             ?.filter((s: any) => s.personnel_id === p.id)
@@ -146,7 +143,6 @@ const App: React.FC = () => {
         });
         setPersonnelList(mappedPersonnel);
         
-        // Update current user ref in case data changed
         if (currentUser) {
             const updatedSelf = mappedPersonnel.find(p => p.id === currentUser.id);
             if (updatedSelf) setCurrentUser(updatedSelf);
@@ -160,18 +156,14 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Tag Management ---
-
   const addTag = async (type: TagType, value: string, color: TagColor | 'auto' = 'auto') => {
     if (!value || !value.trim()) return;
     const { tags } = tagStateMap[type];
-    
     if (tags.some(t => t.value.toLowerCase() === value.toLowerCase())) return;
 
     let newColor: TagColor;
-    if (color !== 'auto') {
-        newColor = color;
-    } else {
+    if (color !== 'auto') newColor = color;
+    else {
         const availableColors: TagColor[] = ['sky', 'green', 'amber', 'indigo', 'pink', 'purple', 'slate'];
         newColor = availableColors[tags.length % availableColors.length];
     }
@@ -183,7 +175,6 @@ const App: React.FC = () => {
       value: value,
       color: newColor
     });
-
     if (!error) fetchData();
   };
 
@@ -195,13 +186,7 @@ const App: React.FC = () => {
     }
   };
   
-  const handleEditTag = async (
-    tagType: TagType,
-    tagId: string,
-    newName: string,
-    newColor: TagColor,
-    replacementTagId?: string
-  ) => {
+  const handleEditTag = async (tagType: TagType, tagId: string, newName: string, newColor: TagColor, replacementTagId?: string) => {
     const oldTag = tagStateMap[tagType].tags.find(t => t.id === tagId);
     if (!oldTag) return;
 
@@ -209,42 +194,28 @@ const App: React.FC = () => {
       const replacementTag = tagStateMap[tagType].tags.find(t => t.id === replacementTagId);
       if (!replacementTag) return;
 
-      if (tagType === 'workArea') {
-        await supabase.from('training_items').update({ work_area: replacementTag.value }).eq('work_area', oldTag.value);
-      } else if (tagType === 'type') {
-        await supabase.from('training_items').update({ type_tag: replacementTag.value }).eq('type_tag', oldTag.value);
-      } else if (tagType === 'chapter') {
-        await supabase.from('training_items').update({ chapter: replacementTag.value }).eq('chapter', oldTag.value);
-      } else if (tagType === 'job') {
-        await supabase.from('personnel').update({ job_title: replacementTag.value }).eq('job_title', oldTag.value);
-      }
+      if (tagType === 'workArea') await supabase.from('training_items').update({ work_area: replacementTag.value }).eq('work_area', oldTag.value);
+      else if (tagType === 'type') await supabase.from('training_items').update({ type_tag: replacementTag.value }).eq('type_tag', oldTag.value);
+      else if (tagType === 'chapter') await supabase.from('training_items').update({ chapter: replacementTag.value }).eq('chapter', oldTag.value);
+      else if (tagType === 'job') await supabase.from('personnel').update({ job_title: replacementTag.value }).eq('job_title', oldTag.value);
 
       await supabase.from('tags').delete().eq('id', tagId);
     } else {
       await supabase.from('tags').update({ value: newName, color: newColor }).eq('id', tagId);
-      
       if (oldTag.value !== newName) {
-         if (tagType === 'workArea') {
-            await supabase.from('training_items').update({ work_area: newName }).eq('work_area', oldTag.value);
-          } else if (tagType === 'type') {
-            await supabase.from('training_items').update({ type_tag: newName }).eq('type_tag', oldTag.value);
-          } else if (tagType === 'chapter') {
-            await supabase.from('training_items').update({ chapter: newName }).eq('chapter', oldTag.value);
-          } else if (tagType === 'job') {
-            await supabase.from('personnel').update({ job_title: newName }).eq('job_title', oldTag.value);
-          }
+         if (tagType === 'workArea') await supabase.from('training_items').update({ work_area: newName }).eq('work_area', oldTag.value);
+         else if (tagType === 'type') await supabase.from('training_items').update({ type_tag: newName }).eq('type_tag', oldTag.value);
+         else if (tagType === 'chapter') await supabase.from('training_items').update({ chapter: newName }).eq('chapter', oldTag.value);
+         else if (tagType === 'job') await supabase.from('personnel').update({ job_title: newName }).eq('job_title', oldTag.value);
       }
     }
     fetchData();
   };
 
-  // --- Training Items Management ---
-
   const handleAddTrainingItem = async (item: Omit<TrainingItem, 'id'>) => {
     await addTag('workArea', item.workArea);
     await addTag('type', item.typeTag);
     await addTag('chapter', item.chapter);
-
     const { error } = await supabase.from('training_items').insert({
       id: crypto.randomUUID(),
       name: item.name,
@@ -252,7 +223,6 @@ const App: React.FC = () => {
       type_tag: item.typeTag,
       chapter: item.chapter
     });
-
     if (!error) fetchData();
   };
 
@@ -263,7 +233,6 @@ const App: React.FC = () => {
       type_tag: updatedItem.typeTag,
       chapter: updatedItem.chapter
     }).eq('id', updatedItem.id);
-
     fetchData();
   };
   
@@ -277,12 +246,8 @@ const App: React.FC = () => {
     fetchData();
   };
 
-  // --- Personnel Management ---
-
   const handleAddPersonnel = async (person: Omit<Personnel, 'id' | 'trainingPlan' | 'status' | 'schedule' | 'role'>) => {
     await addTag('job', person.jobTitle);
-    
-    // Default role is 'user'
     const { error } = await supabase.from('personnel').insert({
       id: crypto.randomUUID(),
       name: person.name,
@@ -294,7 +259,6 @@ const App: React.FC = () => {
       access_code: person.access_code,
       role: 'user'
     });
-    
     if (!error) fetchData();
   };
 
@@ -306,7 +270,7 @@ const App: React.FC = () => {
       phone: updatedPersonnel.phone,
       job_title: updatedPersonnel.jobTitle,
       status: updatedPersonnel.status,
-      access_code: updatedPersonnel.access_code, // Support updating code
+      access_code: updatedPersonnel.access_code,
       role: updatedPersonnel.role
     }).eq('id', updatedPersonnel.id);
 
@@ -315,11 +279,9 @@ const App: React.FC = () => {
         item_id: plan.itemId,
         completed: plan.completed
     }));
-    
     if (progressUpdates.length > 0) {
         await supabase.from('training_progress').upsert(progressUpdates);
     }
-
     fetchData();
   };
 
@@ -332,220 +294,117 @@ const App: React.FC = () => {
     const inserts: any[] = [];
     personnelIds.forEach(pId => {
         itemIds.forEach(itemId => {
-            inserts.push({
-                personnel_id: pId,
-                item_id: itemId,
-                completed: false
-            });
+            inserts.push({ personnel_id: pId, item_id: itemId, completed: false });
         });
     });
-
-    if (inserts.length > 0) {
-        await supabase.from('training_progress').upsert(inserts, { onConflict: 'personnel_id, item_id', ignoreDuplicates: true });
-    }
+    if (inserts.length > 0) await supabase.from('training_progress').upsert(inserts, { onConflict: 'personnel_id, item_id', ignoreDuplicates: true });
     fetchData();
   };
   
   const handleUpdateSchedule = async (personnelId: string, schedule: DailySchedule) => {
     await supabase.from('schedules').delete().eq('personnel_id', personnelId);
-
     const inserts: any[] = [];
     Object.entries(schedule).forEach(([date, itemIds]) => {
         itemIds.forEach(itemId => {
-            inserts.push({
-                personnel_id: personnelId,
-                item_id: itemId,
-                work_date: date
-            });
+            inserts.push({ personnel_id: personnelId, item_id: itemId, work_date: date });
         });
     });
-
-    if (inserts.length > 0) {
-        await supabase.from('schedules').insert(inserts);
-    }
+    if (inserts.length > 0) await supabase.from('schedules').insert(inserts);
     fetchData();
   };
 
   const handleImportTrainingItems = async (rows: any[][]) => {
+    // Reuse existing logic
     const newItems: any[] = [];
     const availableColors: TagColor[] = ['sky', 'green', 'amber', 'indigo', 'pink', 'purple', 'slate', 'red'];
-    
-    // Cache existing tags to prevent duplicates against DB
     const knownTags = {
         workArea: new Set(workAreaTags.map(t => t.value.toLowerCase())),
         type: new Set(typeTags.map(t => t.value.toLowerCase())),
         chapter: new Set(chapterTags.map(t => t.value.toLowerCase()))
     };
-
-    // Track tags to be created in this batch to prevent duplicates within file
-    const tagsToCreate = {
-        workArea: new Set<string>(),
-        type: new Set<string>(),
-        chapter: new Set<string>()
-    };
+    const tagsToCreate = { workArea: new Set<string>(), type: new Set<string>(), chapter: new Set<string>() };
 
     for (const row of rows) {
       try {
         if (!Array.isArray(row) || row.length < 4) continue;
-        // row: [name, workArea, typeTag, chapter]
         const [name, workArea, typeTag, chapter] = row.map(c => String(c || '').trim());
-        
-        // Skip header row if present
         if (name === '項目名稱' || workArea === '工作區') continue;
-
         if (name && workArea && typeTag && chapter) {
-           if (!knownTags.workArea.has(workArea.toLowerCase())) {
-               tagsToCreate.workArea.add(workArea);
-               knownTags.workArea.add(workArea.toLowerCase());
-           }
-           if (!knownTags.type.has(typeTag.toLowerCase())) {
-               tagsToCreate.type.add(typeTag);
-               knownTags.type.add(typeTag.toLowerCase());
-           }
-           if (!knownTags.chapter.has(chapter.toLowerCase())) {
-               tagsToCreate.chapter.add(chapter);
-               knownTags.chapter.add(chapter.toLowerCase());
-           }
-
-           newItems.push({
-             id: crypto.randomUUID(),
-             name,
-             work_area: workArea,
-             type_tag: typeTag,
-             chapter
-           });
+           if (!knownTags.workArea.has(workArea.toLowerCase())) { tagsToCreate.workArea.add(workArea); knownTags.workArea.add(workArea.toLowerCase()); }
+           if (!knownTags.type.has(typeTag.toLowerCase())) { tagsToCreate.type.add(typeTag); knownTags.type.add(typeTag.toLowerCase()); }
+           if (!knownTags.chapter.has(chapter.toLowerCase())) { tagsToCreate.chapter.add(chapter); knownTags.chapter.add(chapter.toLowerCase()); }
+           newItems.push({ id: crypto.randomUUID(), name, work_area: workArea, type_tag: typeTag, chapter });
         }
       } catch (e) { console.error(e); }
     }
 
-    // Helper to insert distinct tags with random colors
     const insertNewTags = async (category: TagType, values: Set<string>) => {
         const newTagsPayload = [];
         for (const val of Array.from(values)) {
-            const randomColor = availableColors[Math.floor(Math.random() * availableColors.length)];
-            newTagsPayload.push({
-                id: crypto.randomUUID(),
-                category,
-                value: val,
-                color: randomColor
-            });
+            newTagsPayload.push({ id: crypto.randomUUID(), category, value: val, color: availableColors[Math.floor(Math.random() * availableColors.length)] });
         }
-        
-        const BATCH_SIZE = 50;
         if (newTagsPayload.length > 0) {
-             for (let i = 0; i < newTagsPayload.length; i += BATCH_SIZE) {
-                 const chunk = newTagsPayload.slice(i, i + BATCH_SIZE);
-                 await supabase.from('tags').insert(chunk);
-             }
+             for (let i = 0; i < newTagsPayload.length; i += 50) await supabase.from('tags').insert(newTagsPayload.slice(i, i + 50));
         }
     };
-
     await insertNewTags('workArea', tagsToCreate.workArea);
     await insertNewTags('type', tagsToCreate.type);
     await insertNewTags('chapter', tagsToCreate.chapter);
 
     if (newItems.length > 0) {
-        const BATCH_SIZE = 50;
-        let successCount = 0;
-        let failCount = 0;
-        
+        let successCount = 0, failCount = 0;
         setLoading(true);
-        for (let i = 0; i < newItems.length; i += BATCH_SIZE) {
-             const chunk = newItems.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < newItems.length; i += 50) {
+             const chunk = newItems.slice(i, i + 50);
              const { error } = await supabase.from('training_items').insert(chunk);
-             
-             if (error) {
-                 console.error(`Error importing batch ${i/BATCH_SIZE + 1}:`, error);
-                 failCount += chunk.length;
-             } else {
-                 successCount += chunk.length;
-             }
+             if (error) failCount += chunk.length; else successCount += chunk.length;
         }
         setLoading(false);
         fetchData();
-        
-        if (failCount > 0) {
-            alert(`匯入完成。成功: ${successCount} 筆，失敗: ${failCount} 筆。\n請檢查檔案格式或網路連線。`);
-        } else {
-            alert(`成功匯入 ${successCount} 筆學習項目。`);
-        }
+        if (failCount > 0) alert(`匯入完成。成功: ${successCount} 筆，失敗: ${failCount} 筆。`);
+        else alert(`成功匯入 ${successCount} 筆學習項目。`);
     }
   };
 
   const handleImportPersonnel = async (rows: any[][]) => {
+    // Reuse existing logic
     const newPeople: any[] = [];
     const allowedTitles = new Set(['外場DUTY', '內場DUTY', 'A TEAM', '管理員', '一般員工']);
-    
     for (const row of rows) {
       try {
         if (!Array.isArray(row) || row.length < 5) continue;
         const [name, genderStr, dob, phone, rawJobTitle, accessCode] = row.map(c => String(c || '').trim());
-        
-        // Skip header row
         if (name === '姓名' && phone === '電話') continue;
-
         if (name && dob && phone) {
-            // Validate Job Title, fallback to '一般員工'
             let jobTitle = rawJobTitle;
-            if (!allowedTitles.has(jobTitle)) {
-                jobTitle = '一般員工';
-            }
-            
-            await addTag('job', jobTitle, 'red'); // Keep tags for coloring purposes
+            if (!allowedTitles.has(jobTitle)) jobTitle = '一般員工';
+            await addTag('job', jobTitle, 'red');
             const defaultCode = accessCode || (phone.length >= 4 ? phone.slice(-4) : '0000');
-            
-            newPeople.push({
-                id: crypto.randomUUID(),
-                name,
-                gender: genderStr,
-                dob,
-                phone,
-                job_title: jobTitle,
-                status: '在職',
-                access_code: defaultCode,
-                role: 'user'
-            });
+            newPeople.push({ id: crypto.randomUUID(), name, gender: genderStr, dob, phone, job_title: jobTitle, status: '在職', access_code: defaultCode, role: 'user' });
         }
       } catch (e) { console.error(e); }
     }
-    
     if (newPeople.length > 0) {
-        const BATCH_SIZE = 50;
-        let successCount = 0;
-        let failCount = 0;
-
+        let successCount = 0, failCount = 0;
         setLoading(true);
-        for (let i = 0; i < newPeople.length; i += BATCH_SIZE) {
-             const chunk = newPeople.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < newPeople.length; i += 50) {
+             const chunk = newPeople.slice(i, i + 50);
              const { error } = await supabase.from('personnel').insert(chunk);
-             
-             if (error) {
-                 console.error(`Error importing personnel batch:`, error);
-                 failCount += chunk.length;
-             } else {
-                 successCount += chunk.length;
-             }
+             if (error) failCount += chunk.length; else successCount += chunk.length;
         }
         setLoading(false);
         fetchData();
-        
-        if (failCount > 0) {
-            alert(`匯入完成。成功: ${successCount} 筆，失敗: ${failCount} 筆。`);
-        } else {
-            alert(`成功匯入 ${successCount} 筆人員資料。`);
-        }
+        if (failCount > 0) alert(`匯入完成。成功: ${successCount} 筆，失敗: ${failCount} 筆。`);
+        else alert(`成功匯入 ${successCount} 筆人員資料。`);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-100 flex justify-center items-center">
-        <div className="text-sky-600 text-xl font-semibold flex items-center gap-2">
-           <svg className="animate-spin h-5 w-5 text-sky-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            資料讀取中...
+      <div className="min-h-screen bg-[#ffffff] flex justify-center items-center">
+        <div className="text-pizza-500 text-xl font-syne font-bold tracking-widest flex items-center gap-4">
+           <div className="w-3 h-3 bg-pizza-500 rounded-full animate-ping"></div>
+           載入中...
         </div>
       </div>
     );
@@ -555,57 +414,73 @@ const App: React.FC = () => {
     return <AuthPage onLogin={handleLogin} />;
   }
 
+  const isHomePage = location.pathname === '/';
+
   return (
-    <div className="min-h-screen bg-slate-100">
-      <Header userName={currentUser.name} userRole={currentUser.role} onSignOut={handleLogout} />
-      <main>
-        <Routes>
-          <Route path="/" element={
-            <PersonnelListPage 
-              personnelList={personnelList} 
-              trainingItems={trainingItems}
-              jobTitleTags={jobTitleTags}
-              userRole={currentUser.role}
-              onAddPersonnel={handleAddPersonnel}
-              onUpdatePersonnel={handleUpdatePersonnel}
-              onDeletePersonnel={handleDeletePersonnel}
-              onImportPersonnel={handleImportPersonnel}
-            />} 
-          />
-          <Route path="/training-items" element={
-            <TrainingItemsPage 
-              items={trainingItems}
-              personnelList={personnelList}
-              workAreaTags={workAreaTags}
-              typeTags={typeTags}
-              chapterTags={chapterTags}
-              jobTitleTags={jobTitleTags}
-              userRole={currentUser.role}
-              onAddItem={handleAddTrainingItem} 
-              onUpdateItem={handleUpdateTrainingItem}
-              onDeleteItem={handleDeleteTrainingItem}
-              onDeleteSelected={handleDeleteSelectedTrainingItems}
-              onDeleteTag={deleteTag}
-              onEditTag={handleEditTag}
-              onImportItems={handleImportTrainingItems}
-              onAssignItemsToPersonnel={handleAssignItemsToPersonnel}
-            />} 
-          />
-          <Route path="/personnel/:personnelId" element={
-            <PersonnelDetailPage
-              personnelList={personnelList}
-              trainingItems={trainingItems}
-              jobTitleTags={jobTitleTags}
-              userRole={currentUser.role}
-              onUpdatePersonnel={handleUpdatePersonnel}
-              onUpdateSchedule={handleUpdateSchedule}
-            />} 
-          />
-          <Route path="/user-management" element={
-             currentUser.role === 'admin' ? <UserManagementPage /> : <Navigate to="/" />
-          } />
-        </Routes>
-      </main>
+    <div className="min-h-screen relative font-sans text-stone-900">
+        {/* Global Vivid Light Aurora Background */}
+        <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+            {/* Light, vivid colors: Sky Blue, Warm Orange, Soft Pink (instead of muddy purple) */}
+            <div className="absolute top-[-10%] left-[-10%] w-[90vw] h-[90vw] bg-sky-200/60 rounded-full blur-[120px] animate-blob mix-blend-multiply"></div>
+            <div className="absolute top-[10%] right-[-10%] w-[90vw] h-[90vw] bg-orange-200/60 rounded-full blur-[120px] animate-blob animation-delay-2000 mix-blend-multiply"></div>
+            <div className="absolute bottom-[-20%] left-[20%] w-[80vw] h-[80vw] bg-pink-200/60 rounded-full blur-[120px] animate-blob animation-delay-4000 mix-blend-multiply"></div>
+        </div>
+        
+        {/* Global Grain Overlay */}
+        <div className="texture-grain fixed inset-0 z-0 pointer-events-none opacity-30"></div>
+
+      <div className="relative z-10 flex flex-col min-h-screen">
+        <Header userName={currentUser.name} userRole={currentUser.role} onSignOut={handleLogout} isHomePage={isHomePage} />
+        <main className="flex-grow">
+          <Routes>
+            <Route path="/" element={<HomePage user={currentUser} />} />
+            <Route path="/personnel-list" element={
+              <PersonnelListPage 
+                personnelList={personnelList} 
+                trainingItems={trainingItems}
+                jobTitleTags={jobTitleTags}
+                userRole={currentUser.role}
+                onAddPersonnel={handleAddPersonnel}
+                onUpdatePersonnel={handleUpdatePersonnel}
+                onDeletePersonnel={handleDeletePersonnel}
+                onImportPersonnel={handleImportPersonnel}
+              />} 
+            />
+            <Route path="/training-items" element={
+              <TrainingItemsPage 
+                items={trainingItems}
+                personnelList={personnelList}
+                workAreaTags={workAreaTags}
+                typeTags={typeTags}
+                chapterTags={chapterTags}
+                jobTitleTags={jobTitleTags}
+                userRole={currentUser.role}
+                onAddItem={handleAddTrainingItem} 
+                onUpdateItem={handleUpdateTrainingItem}
+                onDeleteItem={handleDeleteTrainingItem}
+                onDeleteSelected={handleDeleteSelectedTrainingItems}
+                onDeleteTag={deleteTag}
+                onEditTag={handleEditTag}
+                onImportItems={handleImportTrainingItems}
+                onAssignItemsToPersonnel={handleAssignItemsToPersonnel}
+              />} 
+            />
+            <Route path="/personnel/:personnelId" element={
+              <PersonnelDetailPage
+                personnelList={personnelList}
+                trainingItems={trainingItems}
+                jobTitleTags={jobTitleTags}
+                userRole={currentUser.role}
+                onUpdatePersonnel={handleUpdatePersonnel}
+                onUpdateSchedule={handleUpdateSchedule}
+              />} 
+            />
+            <Route path="/user-management" element={
+              currentUser.role === 'admin' ? <UserManagementPage /> : <Navigate to="/" />
+            } />
+          </Routes>
+        </main>
+      </div>
     </div>
   );
 };

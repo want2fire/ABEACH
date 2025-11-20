@@ -41,7 +41,6 @@ const Importer: React.FC<ImporterProps> = ({ isOpen, onClose, onImport, title, c
   };
 
   const processData = (data: any[][]) => {
-    // Simple validation: check if at least one row has data
     if (!data || data.length === 0) {
       setError('無法讀取資料或檔案為空');
       return;
@@ -65,98 +64,85 @@ const Importer: React.FC<ImporterProps> = ({ isOpen, onClose, onImport, title, c
         reader.onload = (e) => {
           try {
             const data = e.target?.result;
-            // Use 'array' type and codepage 65001 (UTF-8) to handle Chinese characters correctly
             const workbook = XLSX.read(data, { type: 'array', codepage: 65001 });
             const sheetName = workbook.SheetNames[0];
             const sheet = workbook.Sheets[sheetName];
-            // Convert to array of arrays
             const json = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
             processData(json);
           } catch (err) {
-            setError('檔案解析失敗，請確認格式正確');
+            setError('檔案解析失敗');
           } finally {
             setIsLoading(false);
           }
         };
-        // Read as ArrayBuffer is more robust for encoding
         reader.readAsArrayBuffer(file);
 
       } else {
-        // URL Import
         if (!url) {
           setError('請輸入網址');
           setIsLoading(false);
           return;
         }
         
-        // Intelligent handling for Google Sheets
         let fetchUrl = url;
-        if (url.includes('docs.google.com/spreadsheets')) {
-           // Try to convert to XLSX export URL if it's a standard edit/view link
-           // XLSX is binary and handles Unicode characters much better than CSV
-           if (!url.includes('/export')) {
-               // remove /edit... and replace with /export?format=xlsx
-               fetchUrl = url.replace(/\/edit.*$/, '') + '/export?format=xlsx';
-           }
+        if (url.includes('docs.google.com/spreadsheets') && !url.includes('/export')) {
+             fetchUrl = url.replace(/\/edit.*$/, '') + '/export?format=xlsx';
         }
 
         const response = await fetch(fetchUrl);
-        if (!response.ok) throw new Error('無法下載檔案，請確認網址權限');
+        if (!response.ok) throw new Error('無法下載檔案');
         
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('text/html')) {
-            throw new Error('無法下載檔案。請確認該 Google 試算表權限已設定為「知道連結的人均可檢視」，且不是登入頁面。');
+            throw new Error('無法下載檔案。請確認權限設定。');
         }
 
-        // Get arrayBuffer directly from fetch response
         const arrayBuffer = await response.arrayBuffer();
         
         try {
-            // Use 'array' type to handle raw bytes correctly
-            // Force codepage to 65001 (UTF-8)
             const workbook = XLSX.read(arrayBuffer, { type: 'array', codepage: 65001 });
             const sheetName = workbook.SheetNames[0];
             const sheet = workbook.Sheets[sheetName];
             const json = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
             processData(json);
         } catch (err) {
-             setError('無法解析來自網址的資料，可能是檔案格式錯誤');
+             setError('檔案解析錯誤');
              setIsLoading(false);
         }
       }
     } catch (err: any) {
-      setError(err.message || '發生未預期的錯誤');
+      setError(err.message || '發生錯誤');
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex justify-center items-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
-        <div className="p-4 border-b flex justify-between items-center">
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <button onClick={handleClose} className="text-slate-500 hover:text-slate-800 text-2xl leading-none">&times;</button>
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex justify-center items-center p-4">
+      <div className="glass-panel rounded-2xl w-full max-w-lg border border-white bg-white shadow-2xl overflow-hidden">
+        <div className="p-5 border-b border-stone-100 flex justify-between items-center bg-stone-50">
+          <h3 className="text-lg font-bold text-stone-800">{title}</h3>
+          <button onClick={handleClose} className="text-stone-400 hover:text-stone-800 text-2xl leading-none">&times;</button>
         </div>
         
-        <div className="p-4">
-            <div className="flex space-x-4 mb-4 border-b border-slate-200">
+        <div className="p-6">
+            <div className="flex space-x-6 mb-6 border-b border-stone-100">
                 <button 
-                    className={`pb-2 px-1 ${activeTab === 'file' ? 'border-b-2 border-sky-600 text-sky-600 font-medium' : 'text-slate-500'}`}
+                    className={`pb-2 px-1 text-sm font-medium transition-colors ${activeTab === 'file' ? 'border-b-2 border-pizza-500 text-pizza-600' : 'text-stone-400 hover:text-stone-600'}`}
                     onClick={() => setActiveTab('file')}
                 >
                     上傳檔案
                 </button>
                 <button 
-                    className={`pb-2 px-1 ${activeTab === 'url' ? 'border-b-2 border-sky-600 text-sky-600 font-medium' : 'text-slate-500'}`}
+                    className={`pb-2 px-1 text-sm font-medium transition-colors ${activeTab === 'url' ? 'border-b-2 border-pizza-500 text-pizza-600' : 'text-stone-400 hover:text-stone-600'}`}
                     onClick={() => setActiveTab('url')}
                 >
-                    輸入網址
+                    Google 試算表網址
                 </button>
             </div>
 
             <div className="space-y-4 min-h-[150px]">
                 {activeTab === 'file' ? (
-                    <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:bg-slate-50 transition-colors">
+                    <div className="border-2 border-dashed border-stone-300 rounded-xl p-8 text-center hover:bg-stone-50 transition-colors bg-stone-50/50">
                         <input 
                             type="file" 
                             ref={fileInputRef}
@@ -166,52 +152,45 @@ const Importer: React.FC<ImporterProps> = ({ isOpen, onClose, onImport, title, c
                             id="file-upload"
                         />
                         <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
-                            <svg className="w-10 h-10 text-slate-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                            <span className="text-sm text-slate-600 font-medium">{file ? file.name : '點擊選擇 Excel 或 CSV 檔案'}</span>
-                            <span className="text-xs text-slate-400 mt-1">支援 .xlsx, .xls, .csv</span>
+                            <svg className="w-10 h-10 text-pizza-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                            <span className="text-sm text-stone-600 font-medium mb-1">{file ? file.name : '點擊上傳 Excel/CSV 檔案'}</span>
+                            <span className="text-xs text-stone-400">支援格式: .xlsx, .xls, .csv</span>
                         </label>
                     </div>
                 ) : (
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">檔案連結 (Google Sheets 或 Excel)</label>
+                        <label className="block text-xs font-medium text-stone-500 mb-1 uppercase">網址連結</label>
                         <input 
                             type="text" 
                             value={url}
                             onChange={(e) => setUrl(e.target.value)}
                             placeholder="https://docs.google.com/spreadsheets/d/..."
-                            className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-sky-500 focus:border-sky-500 bg-white text-slate-900"
+                            className="glass-input w-full px-4 py-2.5 rounded-lg bg-white text-stone-800 border border-stone-300"
                         />
-                        <p className="text-xs text-slate-500 mt-2">
-                            提示：如果是 Google 試算表，請確保權限已開啟為「知道連結的人均可檢視」。
-                        </p>
+                        <p className="text-xs text-stone-500 mt-2">請確保連結為公開或擁有權限。</p>
                     </div>
                 )}
                 
-                <div className="bg-sky-50 p-3 rounded-md text-sm text-sky-800">
-                     <strong>欄位順序要求：</strong> {columns.join(', ')}
+                <div className="bg-stone-50 p-3 rounded-lg border border-stone-200 text-xs text-stone-500">
+                     <strong className="text-pizza-600">必要欄位:</strong> {columns.join(', ')}
                 </div>
 
                 {error && (
-                    <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
+                    <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-md text-sm">
                         {error}
                     </div>
                 )}
             </div>
         </div>
 
-        <div className="p-4 border-t text-right space-x-2 bg-slate-50 rounded-b-lg">
-          <button onClick={handleClose} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50">取消</button>
+        <div className="p-5 border-t border-stone-100 text-right space-x-3 bg-stone-50">
+          <button onClick={handleClose} className="px-4 py-2 text-stone-500 hover:text-stone-800 transition-colors text-sm">取消</button>
           <button 
             onClick={handleImport} 
             disabled={isLoading}
-            className="px-4 py-2 bg-sky-600 text-white rounded-md hover:bg-sky-700 disabled:bg-sky-300 flex items-center justify-center inline-flex min-w-[80px]"
+            className="px-6 py-2 bg-pizza-500 text-white rounded-lg hover:bg-pizza-600 shadow-md font-medium text-sm disabled:opacity-50"
           >
-            {isLoading ? (
-                 <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                 </svg>
-            ) : '開始匯入'}
+            {isLoading ? '處理中...' : '開始匯入'}
           </button>
         </div>
       </div>

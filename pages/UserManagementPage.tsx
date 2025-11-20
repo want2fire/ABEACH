@@ -1,12 +1,149 @@
-
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { type Personnel } from '../types';
+import { type Personnel, type UserRole, type JobTitle } from '../types';
+
+// Modal Component for Adding/Editing User
+interface UserModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    user: Partial<Personnel> | null; // null = add new, object = edit
+    onSave: (userData: Partial<Personnel>) => Promise<void>;
+}
+
+const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, onSave }) => {
+    const [formData, setFormData] = useState<Partial<Personnel>>({
+        name: '',
+        gender: '男性',
+        dob: '',
+        phone: '',
+        jobTitle: '一般員工',
+        access_code: '',
+        role: 'user',
+        status: '在職'
+    });
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (user) {
+            setFormData(user);
+        } else {
+            // Reset for new user
+            setFormData({
+                name: '',
+                gender: '男性',
+                dob: '',
+                phone: '',
+                jobTitle: '一般員工',
+                access_code: '',
+                role: 'user',
+                status: '在職'
+            });
+        }
+    }, [user, isOpen]);
+
+    if (!isOpen) return null;
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        await onSave(formData);
+        setLoading(false);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex justify-center items-center p-4">
+            <div className="glass-panel rounded-3xl w-full max-w-2xl shadow-2xl bg-white flex flex-col max-h-[90vh]">
+                <div className="p-6 border-b border-stone-100 flex justify-between items-center">
+                    <h3 className="text-xl font-bold text-stone-800">{user ? '編輯用戶資料' : '新增用戶'}</h3>
+                    <button onClick={onClose} className="text-stone-400 hover:text-stone-800 text-2xl">&times;</button>
+                </div>
+                <div className="p-8 overflow-y-auto custom-scrollbar">
+                    <form id="userForm" onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-stone-500 uppercase">姓名</label>
+                            <input type="text" name="name" value={formData.name} onChange={handleChange} required className="glass-input w-full px-4 py-3 rounded-xl" />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-stone-500 uppercase">電話</label>
+                            <input type="tel" name="phone" value={formData.phone} onChange={handleChange} required className="glass-input w-full px-4 py-3 rounded-xl" />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-stone-500 uppercase">性別</label>
+                            <select name="gender" value={formData.gender} onChange={handleChange} className="glass-input w-full px-4 py-3 rounded-xl">
+                                <option value="男性">男性</option>
+                                <option value="女性">女性</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-stone-500 uppercase">出生年月日</label>
+                            <input type="date" name="dob" value={formData.dob} onChange={handleChange} required className="glass-input w-full px-4 py-3 rounded-xl" />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-stone-500 uppercase">職稱</label>
+                            <select name="jobTitle" value={formData.jobTitle} onChange={handleChange} className="glass-input w-full px-4 py-3 rounded-xl">
+                                <option value="一般員工">一般員工</option>
+                                <option value="A TEAM">A TEAM</option>
+                                <option value="內場DUTY">內場DUTY</option>
+                                <option value="外場DUTY">外場DUTY</option>
+                                <option value="管理員">管理員</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-stone-500 uppercase">狀態</label>
+                            <select name="status" value={formData.status} onChange={handleChange} className="glass-input w-full px-4 py-3 rounded-xl">
+                                <option value="在職">在職</option>
+                                <option value="支援">支援</option>
+                                <option value="離職">離職</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-stone-500 uppercase">登入碼 (身分證末四碼)</label>
+                            <input 
+                                type="text" 
+                                name="access_code" 
+                                value={formData.access_code} 
+                                onChange={handleChange} 
+                                required 
+                                maxLength={4} 
+                                className="glass-input w-full px-4 py-3 rounded-xl bg-white text-stone-900"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-stone-500 uppercase">系統權限</label>
+                            <select name="role" value={formData.role} onChange={handleChange} className="glass-input w-full px-4 py-3 rounded-xl">
+                                <option value="user">User (僅查看)</option>
+                                <option value="duty">Duty (管理任務)</option>
+                                <option value="admin">Admin (完全控制)</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div className="p-6 border-t border-stone-100 flex justify-end gap-3">
+                    <button onClick={onClose} className="px-6 py-3 rounded-full text-stone-500 hover:bg-stone-100 text-xs font-bold uppercase">取消</button>
+                    <button type="submit" form="userForm" disabled={loading} className="texture-grain px-8 py-3 rounded-full bg-pizza-500 text-white hover:bg-pizza-600 shadow-lg font-bold text-xs uppercase tracking-widest">
+                        {loading ? '儲存中...' : '確認儲存'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const UserManagementPage: React.FC = () => {
   const [personnel, setPersonnel] = useState<Personnel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<Partial<Personnel> | null>(null);
 
   useEffect(() => {
     fetchPersonnel();
@@ -15,105 +152,131 @@ const UserManagementPage: React.FC = () => {
   const fetchPersonnel = async () => {
     try {
       setLoading(true);
-      // Query directly from personnel table
       const { data, error } = await supabase
         .from('personnel')
         .select('*')
         .order('name', { ascending: true });
 
       if (error) throw error;
-      
-      // Map the raw data if necessary, but Supabase returns matches nicely if names align
       setPersonnel(data as unknown as Personnel[]);
     } catch (err: any) {
-      console.error('Error fetching personnel:', err);
       setError('無法讀取人員資料。');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpdate = async (id: string, field: 'role' | 'access_code', value: string) => {
-    try {
-      const { error } = await supabase
-        .from('personnel')
-        .update({ [field]: value })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      // Optimistic update
-      setPersonnel(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
-    } catch (err: any) {
-      console.error('Error updating personnel:', err);
-      alert('更新失敗');
-    }
+  // Handle creating or updating user
+  const handleSaveUser = async (userData: Partial<Personnel>) => {
+      try {
+          if (userData.id) {
+              // Update existing
+              const { error } = await supabase
+                  .from('personnel')
+                  .update({
+                      name: userData.name,
+                      gender: userData.gender,
+                      dob: userData.dob,
+                      phone: userData.phone,
+                      job_title: userData.jobTitle,
+                      status: userData.status,
+                      access_code: userData.access_code,
+                      role: userData.role
+                  })
+                  .eq('id', userData.id);
+              if (error) throw error;
+          } else {
+              // Insert new
+              // First add job tag if needed (though logic is usually in App.tsx, simplified here to assume tags exist or we just insert text)
+              const { error } = await supabase
+                  .from('personnel')
+                  .insert({
+                      id: crypto.randomUUID(),
+                      name: userData.name,
+                      gender: userData.gender,
+                      dob: userData.dob,
+                      phone: userData.phone,
+                      job_title: userData.jobTitle,
+                      status: userData.status,
+                      access_code: userData.access_code,
+                      role: userData.role
+                  });
+              if (error) throw error;
+          }
+          fetchPersonnel(); // Refresh list
+      } catch (err: any) {
+          alert('儲存失敗: ' + err.message);
+      }
   };
 
-  if (loading) {
-    return <div className="p-8 text-center text-slate-500">載入中...</div>;
-  }
+  const openAddModal = () => {
+      setEditingUser(null);
+      setIsModalOpen(true);
+  };
 
-  if (error) {
-    return (
-        <div className="container mx-auto p-8">
-            <div className="bg-red-50 text-red-700 p-4 rounded-md">
-                {error}
-            </div>
-        </div>
-    );
-  }
+  const openEditModal = (user: Personnel) => {
+      setEditingUser(user);
+      setIsModalOpen(true);
+  };
+
+  if (loading && personnel.length === 0) return <div className="p-8 text-center text-pizza-500 font-bold">載入中...</div>;
+  if (error) return <div className="container mx-auto p-8 text-red-500">{error}</div>;
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
-      <h1 className="text-3xl font-bold text-slate-900 mb-6">權限與帳號管理</h1>
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      <UserModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        user={editingUser} 
+        onSave={handleSaveUser} 
+      />
+
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-stone-900">權限管理</h1>
+        <button 
+            onClick={openAddModal}
+            className="texture-grain px-6 py-3 rounded-full bg-stone-900 text-white hover:bg-pizza-500 shadow-xl text-xs font-bold uppercase tracking-widest transition-all transform hover:scale-105"
+        >
+            新增用戶
+        </button>
+      </div>
+
+      <div className="glass-panel rounded-2xl overflow-hidden border border-white bg-white/70">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+          <table className="min-w-full">
+            <thead className="bg-stone-100 border-b border-stone-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">姓名</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">職稱</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">登入密碼 (身分證末四碼)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">系統權限</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-stone-500 uppercase tracking-wider">姓名</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-stone-500 uppercase tracking-wider">職稱</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-stone-500 uppercase tracking-wider">登入碼</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-stone-500 uppercase tracking-wider">系統權限</th>
+                <th className="px-6 py-4 text-right text-xs font-bold text-stone-500 uppercase tracking-wider">操作</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-slate-200">
+            <tbody className="divide-y divide-stone-100">
               {personnel.map((p) => (
-                <tr key={p.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{p.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{p.jobTitle}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                     <input 
-                        type="text" 
-                        value={p.access_code || ''} 
-                        onChange={(e) => handleUpdate(p.id, 'access_code', e.target.value)}
-                        className="border border-slate-300 rounded px-2 py-1 w-20 text-center focus:ring-sky-500 focus:border-sky-500 bg-white text-slate-900"
-                        maxLength={4}
-                     />
+                <tr key={p.id} className="hover:bg-white transition-colors group">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-stone-800">{p.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-stone-600">{p.jobTitle}</td>
+                  <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-stone-600">{p.access_code}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${p.role === 'admin' ? 'bg-red-50 text-red-600 border-red-200' : p.role === 'duty' ? 'bg-sky-50 text-sky-600 border-sky-200' : 'bg-stone-100 text-stone-600 border-stone-200'}`}>
+                        {p.role === 'admin' ? 'Admin' : p.role === 'duty' ? 'Duty' : 'User'}
+                    </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                    <select
-                      value={p.role || 'user'}
-                      onChange={(e) => handleUpdate(p.id, 'role', e.target.value)}
-                      className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm rounded-md border ${p.role === 'admin' ? 'bg-red-50 font-bold text-red-700' : p.role === 'duty' ? 'bg-sky-50 font-bold text-sky-700' : 'bg-white'}`}
-                    >
-                      <option value="user">一般員工 (User)</option>
-                      <option value="duty">Duty (管理任務)</option>
-                      <option value="admin">管理員 (Admin)</option>
-                    </select>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <button 
+                        onClick={() => openEditModal(p)}
+                        className="text-stone-400 hover:text-pizza-600 font-bold text-xs uppercase"
+                      >
+                        編輯
+                      </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        {personnel.length === 0 && (
-            <div className="p-6 text-center text-slate-500">沒有找到人員資料</div>
-        )}
-      </div>
-      <div className="mt-4 bg-sky-50 p-4 rounded-md text-sm text-sky-800">
-        <p><strong>提示：</strong> 修改後，該員工下次重新整理或登入時權限即生效。</p>
       </div>
     </div>
   );

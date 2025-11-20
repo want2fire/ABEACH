@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { type Personnel, type TrainingItem, type TagData, type UserRole } from '../types';
@@ -7,27 +6,13 @@ import Tag from '../components/Tag';
 import { TrashIcon } from '../components/icons/TrashIcon';
 import Importer from '../components/Importer';
 
-// Helper function to calculate age
-const calculateAge = (dob: string): number => {
-    if (!dob) return 0;
-    const birthDate = new Date(dob);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age;
-};
-
-// Helper function to calculate progress
+// ... (calculateProgress and getNextItemToLearn helper functions remain same)
 const calculateProgress = (person: Personnel): number => {
     if (person.trainingPlan.length === 0) return 100;
     const completedCount = person.trainingPlan.filter(p => p.completed).length;
     return (completedCount / person.trainingPlan.length) * 100;
 };
 
-// Helper function to get next item
 const getNextItemToLearn = (person: Personnel, trainingItems: TrainingItem[]): string => {
     const uncompletedItems = person.trainingPlan
       .filter(p => !p.completed)
@@ -35,11 +20,9 @@ const getNextItemToLearn = (person: Personnel, trainingItems: TrainingItem[]): s
       .filter((item): item is TrainingItem => item !== undefined)
       .sort((a, b) => a.chapter.localeCompare(b.chapter, undefined, {numeric: true}) || a.name.localeCompare(b.name));
 
-    return uncompletedItems.length > 0 ? uncompletedItems[0].name : '已全部完成';
+    return uncompletedItems.length > 0 ? uncompletedItems[0].name : '全數完成';
 };
 
-
-// Card component for displaying and editing personnel
 const PersonnelCard: React.FC<{
     person: Personnel;
     trainingItems: TrainingItem[];
@@ -74,27 +57,26 @@ const PersonnelCard: React.FC<{
 
     if (isEditing) {
         return (
-            <div className="bg-white p-6 rounded-lg shadow-lg border border-sky-500 animate-pulse-once">
-                <style>{`.animate-pulse-once { animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1); } @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .8; } }`}</style>
+            <div className="glass-panel p-6 rounded-3xl border border-pizza-200 shadow-lg">
                 <div className="space-y-4">
-                    <input type="text" name="name" value={editedPerson.name} onChange={handleInputChange} placeholder="姓名" className="input-style w-full font-bold text-slate-900" />
-                    <div className="grid grid-cols-2 gap-2">
-                        <div>
-                            <label className="text-xs text-slate-500">狀態</label>
-                            <select name="status" value={editedPerson.status} onChange={handleInputChange} className="input-style w-full">
+                    <input type="text" name="name" value={editedPerson.name} onChange={handleInputChange} placeholder="姓名" className="glass-input w-full font-bold px-3 py-2 rounded-lg" />
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                            <label className="text-[10px] uppercase text-stone-500 font-bold">狀態</label>
+                            <select name="status" value={editedPerson.status} onChange={handleInputChange} className="glass-input w-full px-3 py-2 rounded-lg">
                                 <option value="在職">在職</option>
                                 <option value="支援">支援</option>
                                 <option value="離職">離職</option>
                             </select>
                         </div>
-                        <div>
-                             <label className="text-xs text-slate-500">身分證末四碼 (登入用)</label>
-                             <input type="text" name="access_code" value={editedPerson.access_code} onChange={handleInputChange} className="input-style w-full" maxLength={4} />
+                        <div className="space-y-1">
+                             <label className="text-[10px] uppercase text-stone-500 font-bold">登入碼</label>
+                             <input type="text" name="access_code" value={editedPerson.access_code} onChange={handleInputChange} className="glass-input w-full px-3 py-2 rounded-lg" maxLength={4} />
                         </div>
                     </div>
-                    <div>
-                        <label className="text-xs text-slate-500">職等</label>
-                        <select name="jobTitle" value={editedPerson.jobTitle} onChange={handleInputChange} className="input-style w-full">
+                    <div className="space-y-1">
+                        <label className="text-[10px] uppercase text-stone-500 font-bold">職位</label>
+                        <select name="jobTitle" value={editedPerson.jobTitle} onChange={handleInputChange} className="glass-input w-full px-3 py-2 rounded-lg">
                              <option value="一般員工">一般員工</option>
                              <option value="A TEAM">A TEAM</option>
                              <option value="內場DUTY">內場DUTY</option>
@@ -102,66 +84,66 @@ const PersonnelCard: React.FC<{
                              <option value="管理員">管理員</option>
                         </select>
                     </div>
-                    <input type="date" name="dob" value={editedPerson.dob} onChange={handleInputChange} className="input-style w-full" />
-                    <input type="tel" name="phone" value={editedPerson.phone} onChange={handleInputChange} placeholder="電話" className="input-style w-full" />
+                    <input type="date" name="dob" value={editedPerson.dob} onChange={handleInputChange} className="glass-input w-full px-3 py-2 rounded-lg" />
+                    <input type="tel" name="phone" value={editedPerson.phone} onChange={handleInputChange} placeholder="電話" className="glass-input w-full px-3 py-2 rounded-lg" />
                     
                     <div className="flex justify-end space-x-2 pt-4">
-                        <button onClick={handleCancel} className="btn-secondary">取消</button>
-                        <button onClick={handleSave} className="btn-primary">儲存</button>
+                        <button onClick={handleCancel} className="px-4 py-2 rounded-lg text-stone-500 hover:bg-stone-100 font-bold text-xs uppercase">取消</button>
+                        <button onClick={handleSave} className="px-4 py-2 rounded-lg bg-pizza-500 text-white hover:bg-pizza-600 shadow-lg font-bold text-xs uppercase">儲存</button>
                     </div>
                 </div>
             </div>
         );
     }
 
+    const progress = calculateProgress(person);
+
     return (
-        <div className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 relative group">
+        <div className="glass-card relative group rounded-3xl p-6 flex flex-col h-full border border-white hover:border-pizza-400 bg-white/60">
+            
             {canEdit && (
-                <div className="absolute top-3 right-3 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => setIsEditing(true)} className="p-1 text-slate-500 hover:text-sky-600" aria-label={`Edit ${person.name}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
+                // Removed opacity-0 group-hover:opacity-100 to ensure actions are accessible on touch devices
+                <div className="absolute top-4 right-4 flex space-x-2 z-20">
+                    <button onClick={() => setIsEditing(true)} className="p-2 rounded-full bg-white text-stone-500 hover:text-pizza-500 hover:bg-stone-50 transition-colors border border-stone-200 shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
                     </button>
-                    <button onClick={() => onDelete(person.id)} className="p-1 text-slate-500 hover:text-red-600" aria-label={`Delete ${person.name}`}>
-                        <TrashIcon className="w-5 h-5" />
+                    <button onClick={() => onDelete(person.id)} className="p-2 rounded-full bg-white text-stone-500 hover:text-red-500 hover:bg-stone-50 transition-colors border border-stone-200 shadow-sm">
+                        <TrashIcon className="w-3 h-3" />
                     </button>
                 </div>
             )}
             
-            <div className="relative inline-block name-button-container self-start group">
-                <Link to={`/personnel/${person.id}`} className="inline-block bg-slate-100 text-slate-800 hover:bg-slate-200 transition-colors duration-200 font-bold py-1 px-4 rounded-lg text-xl" aria-label={`View details for ${person.name}`}>
-                  {person.name}
+            <div className="relative z-10 mb-6">
+                <Link to={`/personnel/${person.id}`} className="inline-block">
+                    <h3 className="text-2xl font-bold text-stone-900 group-hover:text-pizza-600 transition-colors tracking-wide">
+                        {person.name}
+                    </h3>
                 </Link>
-                <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-max bg-slate-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    點擊查看詳細進度
+                <div className="flex flex-wrap gap-2 mt-4">
+                    <Tag color={jobTitleTags.find(t=>t.value===person.jobTitle)?.color || 'red'}>{person.jobTitle}</Tag>
+                    <Tag color={person.gender === '男性' ? 'indigo' : person.gender === '女性' ? 'pink' : 'purple'}>{person.gender}</Tag>
                 </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 mt-3 mb-4">
-                <Tag color={jobTitleTags.find(t=>t.value===person.jobTitle)?.color || 'red'}>{person.jobTitle}</Tag>
-                <Tag color={person.gender === '男性' ? 'indigo' : person.gender === '女性' ? 'pink' : 'purple'}>{person.gender}</Tag>
-                <Tag color="amber">{calculateAge(person.dob)} 歲</Tag>
-                <Tag color="green">{person.phone}</Tag>
-            </div>
-            
-            <div className="space-y-3">
-                <div>
-                    <p className="text-sm font-medium text-slate-500">下一項學習</p>
-                    <p className="text-sm text-slate-800 truncate">{getNextItemToLearn(person, trainingItems)}</p>
+            <div className="relative z-10 mt-auto space-y-5">
+                <div className="bg-white/50 rounded-xl p-4 border border-stone-100">
+                    <p className="text-[10px] uppercase tracking-widest text-stone-500 mb-1 font-bold">當前任務</p>
+                    <p className="text-sm text-stone-800 font-medium truncate opacity-90">{getNextItemToLearn(person, trainingItems)}</p>
                 </div>
+                
                 <div>
-                    <div className="flex justify-between items-center mb-1">
-                        <p className="text-sm font-medium text-slate-500">學習進度</p>
-                        <p className="text-sm font-medium text-sky-600">{Math.round(calculateProgress(person))}%</p>
+                    <div className="flex justify-between items-end mb-2">
+                        <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">完成進度</span>
+                        <span className="text-xl font-syne font-bold text-pizza-500">{Math.round(progress)}%</span>
                     </div>
-                    <ProgressBar progress={calculateProgress(person)} />
+                    <ProgressBar progress={progress} />
                 </div>
             </div>
-            <style>{`.name-button-container:hover .opacity-0 { opacity: 1; }`}</style>
         </div>
     );
 };
 
-
+// ... (PersonnelListPageProps remains same)
 interface PersonnelListPageProps {
   personnelList: Personnel[];
   trainingItems: TrainingItem[];
@@ -213,14 +195,19 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
   const supportPersonnel = personnelList.filter(p => p.status === '支援');
   const resignedPersonnel = personnelList.filter(p => p.status === '離職');
 
-  const renderPersonnelSection = (title: string, personnel: Personnel[], bgColorClass: string = '') => {
+  const renderPersonnelSection = (title: string, personnel: Personnel[], opacityClass: string = '') => {
     const sortedPersonnel = [...personnel].sort((a, b) => a.name.localeCompare(b.name));
     
     return (
-        <div className={`mt-8 ${bgColorClass} p-4 sm:p-6 rounded-lg`}>
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">{title} ({personnel.length})</h2>
+        <div className={`mt-16 ${opacityClass}`}>
+            <div className="flex items-center gap-6 mb-8">
+                <h2 className="text-3xl font-serif text-stone-800">{title}</h2>
+                <span className="w-8 h-8 flex items-center justify-center rounded-full bg-pizza-500 text-white text-xs font-bold">{personnel.length}</span>
+                <div className="h-px flex-grow bg-gradient-to-r from-stone-300 to-transparent"></div>
+            </div>
+            
             {sortedPersonnel.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                     {sortedPersonnel.map(person => (
                         <PersonnelCard 
                             key={person.id} 
@@ -234,60 +221,68 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
                     ))}
                 </div>
             ) : (
-                <p className="text-slate-500">此區無人員資料</p>
+                <div className="glass-panel p-10 rounded-3xl text-center border-dashed border-stone-300">
+                    <p className="text-stone-400 font-serif text-lg">此分類尚無人員</p>
+                </div>
             )}
         </div>
       );
   };
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+    <div className="container mx-auto p-6 sm:p-8 lg:p-10 pb-24">
       <Importer
         isOpen={isImporterOpen}
         onClose={() => setIsImporterOpen(false)}
         onImport={onImportPersonnel}
-        title="從試算表匯入人員資料"
-        columns={['姓名', '性別', '出生年月日 (YYYY-MM-DD)', '電話', '職等', '身分證末四碼(選填)']}
+        title="匯入員工資料"
+        columns={['姓名', '性別', '出生年月日', '電話', '職等', '身分證末四碼']}
       />
-      <style>{`
-        .input-style { display: block; width: 100%; padding: 0.5rem 0.75rem; background-color: white; border: 1px solid #cbd5e1; border-radius: 0.375rem; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
-        .btn-primary { padding: 0.5rem 1rem; border: 1px solid transparent; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 500; color: white; background-color: #0ea5e9; } .btn-primary:hover { background-color: #0284c7; }
-        .btn-secondary { padding: 0.5rem 1rem; border: 1px solid #cbd5e1; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 500; color: #334155; background-color: white; } .btn-secondary:hover { background-color: #f1f5f9; }
-      `}</style>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-slate-900">人員名單</h1>
+      
+      {/* Fixed alignment: items-start to align title left on mobile */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+        <div>
+            {/* Title left aligned and non-italic on mobile */}
+            <h1 className="text-4xl md:text-5xl font-playfair text-left font-bold text-stone-900 mb-2 not-italic">夥伴名單</h1>
+            <p className="text-stone-500 text-sm font-bold tracking-widest uppercase text-left">管理您的團隊與進度</p>
+        </div>
+        
         {canManage && (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-4">
                 <button 
                 onClick={() => setIsImporterOpen(true)}
-                className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="texture-grain px-6 py-3 rounded-full border border-stone-400 text-stone-600 hover:text-pizza-600 hover:border-pizza-500 hover:bg-white text-xs font-bold uppercase tracking-widest transition-all"
                 >
                 匯入資料
                 </button>
                 <button 
                 onClick={() => setIsFormVisible(!isFormVisible)}
-                className="py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500"
+                className="texture-grain px-8 py-3 rounded-full bg-stone-900 text-white hover:bg-pizza-500 shadow-xl text-xs font-bold uppercase tracking-widest transition-all transform hover:scale-105"
                 >
-                {isFormVisible ? '取消新增' : '新增人員'}
+                {isFormVisible ? '關閉表單' : '新增夥伴'}
                 </button>
             </div>
         )}
       </div>
       
+      {/* ... (Form logic remains same) */}
       {isFormVisible && canManage && (
-        <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
-          <h2 className="text-xl font-semibold mb-4">新增人員資料</h2>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="姓名" required className="input-style" />
-            <select value={newGender} onChange={e => setNewGender(e.target.value as any)} required className="input-style">
+        <div className="glass-panel p-10 rounded-3xl mb-16 animate-fade-in border border-white">
+            <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-playfair text-stone-800">新增夥伴</h2>
+                <button onClick={() => setIsFormVisible(false)} className="text-stone-400 hover:text-stone-800 text-2xl">&times;</button>
+            </div>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="姓名" required className="glass-input w-full px-6 py-4 rounded-xl" />
+            <select value={newGender} onChange={e => setNewGender(e.target.value as any)} required className="glass-input w-full px-6 py-4 rounded-xl">
               <option>男性</option>
               <option>女性</option>
               <option>其他</option>
             </select>
-            <input type="date" value={newDob} onChange={e => setNewDob(e.target.value)} required className="input-style" />
-            <input type="tel" value={newPhone} onChange={e => setNewPhone(e.target.value)} placeholder="電話" required className="input-style" />
+            <input type="date" value={newDob} onChange={e => setNewDob(e.target.value)} required className="glass-input w-full px-6 py-4 rounded-xl" />
+            <input type="tel" value={newPhone} onChange={e => setNewPhone(e.target.value)} placeholder="電話號碼" required className="glass-input w-full px-6 py-4 rounded-xl" />
             <div>
-                <select value={newJobTitle} onChange={e => setNewJobTitle(e.target.value)} className="input-style" required>
+                <select value={newJobTitle} onChange={e => setNewJobTitle(e.target.value)} className="glass-input w-full px-6 py-4 rounded-xl" required>
                     <option value="一般員工">一般員工</option>
                     <option value="A TEAM">A TEAM</option>
                     <option value="內場DUTY">內場DUTY</option>
@@ -296,16 +291,16 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
                 </select>
             </div>
             <div>
-                <input type="text" value={newAccessCode} onChange={e => setNewAccessCode(e.target.value)} placeholder="身分證末四碼 (預設為電話後4碼)" className="input-style" maxLength={4} />
+                <input type="text" value={newAccessCode} onChange={e => setNewAccessCode(e.target.value)} placeholder="登入代碼 (身分證末四碼)" className="glass-input w-full px-6 py-4 rounded-xl" maxLength={4} />
             </div>
-            <button type="submit" className="md:col-span-2 justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">確認新增</button>
+            <button type="submit" className="texture-grain md:col-span-2 py-4 rounded-xl bg-pizza-500 hover:bg-pizza-600 text-white font-bold uppercase tracking-widest shadow-xl transition-all">建立夥伴資料</button>
           </form>
         </div>
       )}
 
-      {renderPersonnelSection('在職人員', activePersonnel)}
-      {renderPersonnelSection('支援人員', supportPersonnel, 'bg-sky-50')}
-      {renderPersonnelSection('離職人員', resignedPersonnel, 'bg-slate-200')}
+      {renderPersonnelSection('在職夥伴', activePersonnel)}
+      {renderPersonnelSection('支援夥伴', supportPersonnel, 'opacity-80')}
+      {renderPersonnelSection('離職人員', resignedPersonnel, 'opacity-50 grayscale')}
 
     </div>
   );

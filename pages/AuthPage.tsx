@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Personnel } from '../types';
@@ -19,7 +18,6 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
     setError(null);
 
     try {
-      // Verify against the personnel table
       const { data, error } = await supabase
         .from('personnel')
         .select('*')
@@ -28,68 +26,87 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
         .single();
 
       if (error || !data) {
-        throw new Error('找不到此使用者或驗證碼錯誤');
+        throw new Error('找不到使用者或代碼錯誤');
       }
 
       onLogin(data as unknown as Personnel);
       
     } catch (err: any) {
-      setError(err.message || '登入失敗，請檢查姓名與身分證末四碼');
+      setError(err.message || '登入失敗');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
-        <div className="bg-sky-600 p-6 text-center">
-          <h1 className="text-2xl font-bold text-white">餐飲業學習進度追蹤器</h1>
-          <p className="text-sky-100 mt-2">請輸入姓名與身分證末四碼登入</p>
+    <div className="min-h-screen flex flex-col justify-center items-center p-4 relative overflow-hidden">
+        {/* Background: Sunny Beach */}
+        <div className="absolute inset-0 z-0">
+            <img 
+                src="https://images.unsplash.com/photo-1615574548791-5bf7e9ff67e9?q=80&w=2071&auto=format&fit=crop" 
+                alt="Sunny Beach" 
+                className="w-full h-full object-cover"
+            />
+            {/* Light warm overlay */}
+            <div className="absolute inset-0 bg-white/30 backdrop-blur-[3px]"></div>
         </div>
-        
-        <div className="p-8">
+
+      <div className="relative z-10 w-full max-w-md">
+        <div className="glass-panel rounded-3xl p-10 shadow-2xl border border-white/40 backdrop-blur-xl bg-white/80">
+          <div className="text-center mb-10">
+            <h1 className="text-4xl font-syne font-bold text-stone-900 mb-2 tracking-tight">
+              A BEACH 101
+            </h1>
+            <h2 className="text-xl font-syne font-bold text-pizza-600 tracking-widest mb-6">& PIZZA</h2>
+            <p className="text-stone-500 font-serif text-lg">員工訓練系統</p>
+          </div>
+          
           {error && (
-            <div className="mb-4 p-3 rounded text-sm bg-red-100 text-red-700">
+            <div className="mb-6 p-4 rounded-xl border border-red-200 bg-red-50 text-red-600 text-sm text-center font-medium">
               {error}
             </div>
           )}
 
           <form onSubmit={handleLogin} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">姓名</label>
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest">姓名</label>
               <input
                 type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
-                placeholder="請輸入完整姓名"
+                className="glass-input w-full px-5 py-4 rounded-xl outline-none transition-all text-lg placeholder-stone-400"
+                placeholder="請輸入姓名"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">身分證末四碼 (作為密碼)</label>
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest">身分證末四碼</label>
               <input
                 type="password"
                 required
                 value={accessCode}
                 onChange={(e) => setAccessCode(e.target.value)}
-                className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500"
-                placeholder="例如：1234"
+                className="glass-input w-full px-5 py-4 rounded-xl outline-none transition-all text-lg placeholder-stone-400 text-center tracking-[0.5em]"
+                placeholder="••••"
                 maxLength={4}
               />
             </div>
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-sky-600 text-white py-2 px-4 rounded-md hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 disabled:opacity-50 transition-colors font-bold"
+              className="w-full mt-6 py-4 px-6 rounded-xl bg-pizza-500 hover:bg-pizza-600 text-white font-bold text-lg tracking-wide shadow-lg shadow-pizza-200 transition-all transform hover:-translate-y-1 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
             >
-              {isLoading ? '驗證中...' : '登入系統'}
+              {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                      <span>載入中</span>
+                      <span className="animate-pulse">...</span>
+                  </span>
+              ) : '進入系統'}
             </button>
           </form>
-          <p className="text-xs text-slate-500 mt-6 text-center">
-            若無法登入，請聯繫店長或管理員確認您的資料。
-          </p>
+        </div>
+        <div className="text-center mt-8 text-stone-600 text-xs font-syne tracking-widest">
+            A BEACH 101 & PIZZA &copy; {new Date().getFullYear()}
         </div>
       </div>
     </div>
