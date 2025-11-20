@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { type TrainingItem, type TagData, type TagColor, type Personnel } from '../types';
 import { TrashIcon } from '../components/icons/TrashIcon';
@@ -138,7 +139,6 @@ const EditTagModal: React.FC<{
             <div className="flex flex-wrap gap-2 mt-2">
               {availableColors.map(color => (
                 <button key={color} onClick={() => setTagColor(color)} className={`h-8 w-8 rounded-full border-2 ${tagColor === color ? 'border-sky-500 ring-2 ring-sky-200' : 'border-transparent'}`}>
-{/* FIX: Added a non-breaking space as a child to the Tag component to satisfy the required 'children' prop. */}
                    <Tag color={color} className="w-full h-full block rounded-full">&nbsp;</Tag>
                 </button>
               ))}
@@ -244,14 +244,13 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
   const [newItemWorkArea, setNewItemWorkArea] = useState('');
   const [newItemType, setNewItemType] = useState('');
   const [newItemChapter, setNewItemChapter] = useState('');
-  const [newItemSection, setNewItemSection] = useState('');
   const [isImporterOpen, setIsImporterOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   
   const [filters, setFilters] = useState({ workArea: 'all', chapter: 'all' });
   const [selectedItems, setSelectedItems] = useState(new Set<string>());
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [editedItemData, setEditedItemData] = useState<Omit<TrainingItem, 'id'>>({ name: '', workArea: '', typeTag: '', chapter: '', section: '' });
+  const [editedItemData, setEditedItemData] = useState<Omit<TrainingItem, 'id'>>({ name: '', workArea: '', typeTag: '', chapter: '' });
 
   const [tagToEdit, setTagToEdit] = useState<{tag: TagData; type: TagType} | null>(null);
 
@@ -287,9 +286,7 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
         if (isAUndefined && !isBUndefined) return -1;
         if (!isAUndefined && isBUndefined) return 1;
 
-        const chapterCompare = a.chapter.localeCompare(b.chapter, undefined, { numeric: true });
-        if (chapterCompare !== 0) return chapterCompare;
-        return a.section.localeCompare(b.section, undefined, { numeric: true });
+        return a.chapter.localeCompare(b.chapter, undefined, { numeric: true });
     }),
     [filteredItems, existingTags]
   );
@@ -328,19 +325,18 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newItemName.trim() && newItemWorkArea.trim() && newItemType.trim() && newItemChapter.trim() && newItemSection.trim()) {
-      onAddItem({ name: newItemName, workArea: newItemWorkArea, typeTag: newItemType, chapter: newItemChapter, section: newItemSection });
+    if (newItemName.trim() && newItemWorkArea.trim() && newItemType.trim() && newItemChapter.trim()) {
+      onAddItem({ name: newItemName, workArea: newItemWorkArea, typeTag: newItemType, chapter: newItemChapter });
       setNewItemName('');
       setNewItemWorkArea('');
       setNewItemType('');
       setNewItemChapter('');
-      setNewItemSection('');
     }
   };
 
   const handleStartEdit = (item: TrainingItem) => {
     setEditingItemId(item.id);
-    setEditedItemData({ name: item.name, workArea: item.workArea, typeTag: item.typeTag, chapter: item.chapter, section: item.section });
+    setEditedItemData({ name: item.name, workArea: item.workArea, typeTag: item.typeTag, chapter: item.chapter });
   };
   
   const handleCancelEdit = () => setEditingItemId(null);
@@ -374,7 +370,7 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
         onClose={() => setIsImporterOpen(false)}
         onImport={onImportItems}
         title="從試算表匯入學習項目"
-        columns={['項目名稱', '工作區', '類型', '章節', '段落']}
+        columns={['項目名稱', '工作區', '類型', '章節']}
       />
       <AssignToPersonnelModal 
         isOpen={isAssignModalOpen}
@@ -402,8 +398,8 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
       
       <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
         <h2 className="text-xl font-semibold mb-4">新增學習項目</h2>
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-            <div className="md:col-span-2">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+            <div className="md:col-span-1">
                 <label className="label-style">項目名稱</label>
                 <input type="text" value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="例如：製作拿鐵" className="input-style" required />
             </div>
@@ -428,11 +424,7 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
                     {chapterTags.map(tag => <option key={tag.id} value={tag.value} />)}
                 </datalist>
             </div>
-            <div>
-                <label className="label-style">段落</label>
-                <input type="text" value={newItemSection} onChange={(e) => setNewItemSection(e.target.value)} placeholder="例如：1" className="input-style" required />
-            </div>
-            <button type="submit" className="w-full justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">
+            <button type="submit" className="justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">
               新增項目
             </button>
         </form>
@@ -474,7 +466,6 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
                 <th className="th-style">工作區</th>
                 <th className="th-style">類型</th>
                 <th className="th-style">章節</th>
-                <th className="th-style">段落</th>
                 <th className="relative px-6 py-3 text-right th-style">操作</th>
               </tr>
             </thead>
@@ -488,7 +479,6 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
                         <td className="px-6 py-4"><input type="text" value={editedItemData.workArea} onChange={e => setEditedItemData({...editedItemData, workArea: e.target.value})} list="workarea-tags-list" className="input-style" /></td>
                         <td className="px-6 py-4"><input type="text" value={editedItemData.typeTag} onChange={e => setEditedItemData({...editedItemData, typeTag: e.target.value})} list="type-tags-list" className="input-style" /></td>
                         <td className="px-6 py-4"><input type="text" value={editedItemData.chapter} onChange={e => setEditedItemData({...editedItemData, chapter: e.target.value})} list="chapter-tags-list" className="input-style" /></td>
-                        <td className="px-6 py-4"><input type="text" value={editedItemData.section} onChange={e => setEditedItemData({...editedItemData, section: e.target.value})} className="input-style" /></td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                            <button onClick={handleSaveEdit} className="text-green-600 hover:text-green-900">儲存</button>
                            <button onClick={handleCancelEdit} className="text-slate-600 hover:text-slate-900">取消</button>
@@ -501,7 +491,6 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
                       <td className="td-style"><Tag color={workAreaTags.find(t=>t.value===item.workArea)?.color || 'red'}>{item.workArea}</Tag></td>
                       <td className="td-style"><Tag color={typeTags.find(t=>t.value===item.typeTag)?.color || 'red'}>{item.typeTag}</Tag></td>
                       <td className="td-style"><Tag color={chapterTags.find(t=>t.value===item.chapter)?.color || 'red'}>{item.chapter}</Tag></td>
-                      <td className="td-style"><Tag color="amber">{item.section}</Tag></td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
                           <button onClick={() => handleStartEdit(item)} className="text-sky-600 hover:text-sky-900">編輯</button>
                           <button onClick={() => onDeleteItem(item.id)} className="text-red-600 hover:text-red-900"><TrashIcon className="w-5 h-5 inline" /></button>

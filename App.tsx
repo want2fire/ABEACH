@@ -99,8 +99,7 @@ const App: React.FC = () => {
           name: item.name,
           workArea: item.work_area,
           typeTag: item.type_tag,
-          chapter: item.chapter,
-          section: item.section
+          chapter: item.chapter
         }));
         setTrainingItems(mappedItems);
       }
@@ -251,8 +250,7 @@ const App: React.FC = () => {
       name: item.name,
       work_area: item.workArea,
       type_tag: item.typeTag,
-      chapter: item.chapter,
-      section: item.section
+      chapter: item.chapter
     });
 
     if (!error) fetchData();
@@ -263,8 +261,7 @@ const App: React.FC = () => {
       name: updatedItem.name,
       work_area: updatedItem.workArea,
       type_tag: updatedItem.typeTag,
-      chapter: updatedItem.chapter,
-      section: updatedItem.section
+      chapter: updatedItem.chapter
     }).eq('id', updatedItem.id);
 
     fetchData();
@@ -370,40 +367,126 @@ const App: React.FC = () => {
   };
 
   const handleImportTrainingItems = async (rows: any[][]) => {
-    const newItems = [];
+    const newItems: any[] = [];
+    const availableColors: TagColor[] = ['sky', 'green', 'amber', 'indigo', 'pink', 'purple', 'slate', 'red'];
+    
+    // Cache existing tags to prevent duplicates against DB
+    const knownTags = {
+        workArea: new Set(workAreaTags.map(t => t.value.toLowerCase())),
+        type: new Set(typeTags.map(t => t.value.toLowerCase())),
+        chapter: new Set(chapterTags.map(t => t.value.toLowerCase()))
+    };
+
+    // Track tags to be created in this batch to prevent duplicates within file
+    const tagsToCreate = {
+        workArea: new Set<string>(),
+        type: new Set<string>(),
+        chapter: new Set<string>()
+    };
+
     for (const row of rows) {
       try {
-        if (!Array.isArray(row) || row.length < 5) continue;
-        const [name, workArea, typeTag, chapter, section] = row.map(c => String(c || '').trim());
-        if (name && workArea && typeTag && chapter && section) {
-           await addTag('workArea', workArea, 'red');
-           await addTag('type', typeTag, 'red');
-           await addTag('chapter', chapter, 'red');
+        if (!Array.isArray(row) || row.length < 4) continue;
+        // row: [name, workArea, typeTag, chapter]
+        const [name, workArea, typeTag, chapter] = row.map(c => String(c || '').trim());
+        
+        // Skip header row if present
+        if (name === '項目名稱' || workArea === '工作區') continue;
+
+        if (name && workArea && typeTag && chapter) {
+           if (!knownTags.workArea.has(workArea.toLowerCase())) {
+               tagsToCreate.workArea.add(workArea);
+               knownTags.workArea.add(workArea.toLowerCase());
+           }
+           if (!knownTags.type.has(typeTag.toLowerCase())) {
+               tagsToCreate.type.add(typeTag);
+               knownTags.type.add(typeTag.toLowerCase());
+           }
+           if (!knownTags.chapter.has(chapter.toLowerCase())) {
+               tagsToCreate.chapter.add(chapter);
+               knownTags.chapter.add(chapter.toLowerCase());
+           }
+
            newItems.push({
              id: crypto.randomUUID(),
              name,
              work_area: workArea,
              type_tag: typeTag,
-             chapter,
-             section
+             chapter
            });
         }
       } catch (e) { console.error(e); }
     }
+
+    // Helper to insert distinct tags with random colors
+    const insertNewTags = async (category: TagType, values: Set<string>) => {
+        const newTagsPayload = [];
+        for (const val of Array.from(values)) {
+            const randomColor = availableColors[Math.floor(Math.random() * availableColors.length)];
+            newTagsPayload.push({
+                id: crypto.randomUUID(),
+                category,
+                value: val,
+                color: randomColor
+            });
+        }
+        
+        // Batch insert tags just in case there are many
+        const BATCH_SIZE = 50;
+        if (newTagsPayload.length > 0) {
+             for (let i = 0; i < newTagsPayload.length; i += BATCH_SIZE) {
+                 const chunk = newTagsPayload.slice(i, i + BATCH_SIZE);
+                 await supabase.from('tags').insert(chunk);
+             }
+        }
+    };
+
+    // Create tags first
+    await insertNewTags('workArea', tagsToCreate.workArea);
+    await insertNewTags('type', tagsToCreate.type);
+    await insertNewTags('chapter', tagsToCreate.chapter);
+
+    // Then create items with batch processing
     if (newItems.length > 0) {
-        await supabase.from('training_items').insert(newItems);
+        const BATCH_SIZE = 50;
+        let successCount = 0;
+        let failCount = 0;
+        
+        setLoading(true);
+        // Process in batches to avoid payload limits and timeouts
+        for (let i = 0; i < newItems.length; i += BATCH_SIZE) {
+             const chunk = newItems.slice(i, i + BATCH_SIZE);
+             const { error } = await supabase.from('training_items').insert(chunk);
+             
+             if (error) {
+                 console.error(`Error importing batch ${i/BATCH_SIZE + 1}:`, error);
+                 failCount += chunk.length;
+             } else {
+                 successCount += chunk.length;
+             }
+        }
+        setLoading(false);
         fetchData();
+        
+        if (failCount > 0) {
+            alert(`匯入完成。成功: ${successCount} 筆，失敗: ${failCount} 筆。\n請檢查檔案格式或網路連線。`);
+        } else {
+            alert(`成功匯入 ${successCount} 筆學習項目。`);
+        }
     }
   };
 
   const handleImportPersonnel = async (rows: any[][]) => {
-    const newPeople = [];
+    const newPeople: any[] = [];
     for (const row of rows) {
       try {
         if (!Array.isArray(row) || row.length < 5) continue;
         // Updated to allow access code in 6th column, default to last 4 digits of phone if missing
         const [name, genderStr, dob, phone, jobTitle, accessCode] = row.map(c => String(c || '').trim());
         
+        // Skip header row
+        if (name === '姓名' && phone === '電話') continue;
+
         if (name && dob && phone && jobTitle) {
             await addTag('job', jobTitle, 'red');
             const defaultCode = accessCode || (phone.length >= 4 ? phone.slice(-4) : '0000');
@@ -422,9 +505,33 @@ const App: React.FC = () => {
         }
       } catch (e) { console.error(e); }
     }
+    
+    // Batch insert personnel
     if (newPeople.length > 0) {
-        await supabase.from('personnel').insert(newPeople);
+        const BATCH_SIZE = 50;
+        let successCount = 0;
+        let failCount = 0;
+
+        setLoading(true);
+        for (let i = 0; i < newPeople.length; i += BATCH_SIZE) {
+             const chunk = newPeople.slice(i, i + BATCH_SIZE);
+             const { error } = await supabase.from('personnel').insert(chunk);
+             
+             if (error) {
+                 console.error(`Error importing personnel batch:`, error);
+                 failCount += chunk.length;
+             } else {
+                 successCount += chunk.length;
+             }
+        }
+        setLoading(false);
         fetchData();
+        
+        if (failCount > 0) {
+            alert(`匯入完成。成功: ${successCount} 筆，失敗: ${failCount} 筆。`);
+        } else {
+            alert(`成功匯入 ${successCount} 筆人員資料。`);
+        }
     }
   };
 

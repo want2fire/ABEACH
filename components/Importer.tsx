@@ -65,7 +65,8 @@ const Importer: React.FC<ImporterProps> = ({ isOpen, onClose, onImport, title, c
         reader.onload = (e) => {
           try {
             const data = e.target?.result;
-            const workbook = XLSX.read(data, { type: 'binary' });
+            // Use 'array' type and codepage 65001 (UTF-8) to handle Chinese characters correctly
+            const workbook = XLSX.read(data, { type: 'array', codepage: 65001 });
             const sheetName = workbook.SheetNames[0];
             const sheet = workbook.Sheets[sheetName];
             // Convert to array of arrays
@@ -77,7 +78,8 @@ const Importer: React.FC<ImporterProps> = ({ isOpen, onClose, onImport, title, c
             setIsLoading(false);
           }
         };
-        reader.readAsBinaryString(file);
+        // Read as ArrayBuffer is more robust for encoding
+        reader.readAsArrayBuffer(file);
 
       } else {
         // URL Import
@@ -90,34 +92,37 @@ const Importer: React.FC<ImporterProps> = ({ isOpen, onClose, onImport, title, c
         // Intelligent handling for Google Sheets
         let fetchUrl = url;
         if (url.includes('docs.google.com/spreadsheets')) {
-           // Try to convert to CSV export URL if it's a standard edit/view link
+           // Try to convert to XLSX export URL if it's a standard edit/view link
+           // XLSX is binary and handles Unicode characters much better than CSV
            if (!url.includes('/export')) {
-               // remove /edit... and replace with /export?format=csv
-               fetchUrl = url.replace(/\/edit.*$/, '') + '/export?format=csv';
+               // remove /edit... and replace with /export?format=xlsx
+               fetchUrl = url.replace(/\/edit.*$/, '') + '/export?format=xlsx';
            }
         }
 
         const response = await fetch(fetchUrl);
         if (!response.ok) throw new Error('無法下載檔案，請確認網址權限');
         
-        const blob = await response.blob();
-        const reader = new FileReader();
-        reader.onload = (e) => {
-             try {
-                const data = e.target?.result;
-                // Determine format. If CSV, XLSX read can handle it usually if type is implied or binary
-                const workbook = XLSX.read(data, { type: 'binary' });
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
-                const json = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-                processData(json);
-             } catch (err) {
-                 setError('無法解析來自網址的資料');
-             } finally {
-                 setIsLoading(false);
-             }
-        };
-        reader.readAsBinaryString(blob);
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+            throw new Error('無法下載檔案。請確認該 Google 試算表權限已設定為「知道連結的人均可檢視」，且不是登入頁面。');
+        }
+
+        // Get arrayBuffer directly from fetch response
+        const arrayBuffer = await response.arrayBuffer();
+        
+        try {
+            // Use 'array' type to handle raw bytes correctly
+            // Force codepage to 65001 (UTF-8)
+            const workbook = XLSX.read(arrayBuffer, { type: 'array', codepage: 65001 });
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            const json = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+            processData(json);
+        } catch (err) {
+             setError('無法解析來自網址的資料，可能是檔案格式錯誤');
+             setIsLoading(false);
+        }
       }
     } catch (err: any) {
       setError(err.message || '發生未預期的錯誤');
@@ -168,7 +173,7 @@ const Importer: React.FC<ImporterProps> = ({ isOpen, onClose, onImport, title, c
                     </div>
                 ) : (
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">檔案連結 (Google Sheets 或 CSV)</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">檔案連結 (Google Sheets 或 Excel)</label>
                         <input 
                             type="text" 
                             value={url}

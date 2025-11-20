@@ -13,7 +13,6 @@ export interface TrainingItem {
   workArea: string; // Renamed from typeTag
   typeTag: string;  // New field
   chapter: string;
-  section: string;
 }
 
 export interface TrainingAssignment {

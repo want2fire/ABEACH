@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { type Personnel, type TrainingItem, type TrainingAssignment, type TagData, type DailySchedule } from '../types';
@@ -72,7 +73,7 @@ const ScheduleItemModal: React.FC<{
                                     />
                                     <label htmlFor={`item-${item.id}`} className="ml-3 flex-grow">
                                         <p className="font-medium">{item.name}</p>
-                                        <p className="text-sm text-slate-500">{item.chapter}-{item.section} / {item.workArea}</p>
+                                        <p className="text-sm text-slate-500">{item.chapter} / {item.workArea}</p>
                                     </label>
                                 </li>
                             ))}
@@ -235,9 +236,7 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
       .map(p => ({ ...p, details: getItemDetails(p.itemId) }))
       .filter(p => p.details)
       .sort((a, b) => {
-        const chapterCompare = a.details!.chapter.localeCompare(b.details!.chapter, undefined, { numeric: true });
-        if (chapterCompare !== 0) return chapterCompare;
-        return a.details!.section.localeCompare(b.details!.section, undefined, { numeric: true });
+        return a.details!.chapter.localeCompare(b.details!.chapter, undefined, { numeric: true });
       });
 
     return (
@@ -255,7 +254,6 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
               <span className={`block font-medium ${completed ? 'line-through' : 'text-slate-800'}`}>{details!.name}</span>
               <div className="flex items-center space-x-2 text-xs mt-1">
                 <Tag color="green">{details!.chapter}</Tag>
-                <Tag color="amber">{details!.section}</Tag>
                 <Tag color="sky">{details!.workArea}</Tag>
                 <Tag color="purple">{details!.typeTag}</Tag>
               </div>
@@ -286,7 +284,7 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
                         />
                         <div className="ml-3 flex-grow">
                             <p className={`font-medium ${isCompleted ? 'line-through' : 'text-slate-800'}`}>{item.name}</p>
-                            <p className="text-sm">{item.chapter}-{item.section}</p>
+                            <p className="text-sm">{item.chapter}</p>
                         </div>
                     </li>
                  )

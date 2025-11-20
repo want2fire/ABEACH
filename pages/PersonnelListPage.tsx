@@ -33,7 +33,7 @@ const getNextItemToLearn = (person: Personnel, trainingItems: TrainingItem[]): s
       .filter(p => !p.completed)
       .map(p => trainingItems.find(item => item.id === p.itemId))
       .filter((item): item is TrainingItem => item !== undefined)
-      .sort((a, b) => a.chapter.localeCompare(b.chapter, undefined, {numeric: true}) || a.section.localeCompare(b.section, undefined, { numeric: true }));
+      .sort((a, b) => a.chapter.localeCompare(b.chapter, undefined, {numeric: true}) || a.name.localeCompare(b.name));
 
     return uncompletedItems.length > 0 ? uncompletedItems[0].name : '已全部完成';
 };
