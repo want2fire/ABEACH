@@ -35,3 +35,10 @@ export interface Personnel {
   status: '在職' | '支援' | '離職';
   schedule: DailySchedule;
 }
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  role: 'admin' | 'user';
+  created_at: string;
+}

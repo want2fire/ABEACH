@@ -1,16 +1,19 @@
-
 import React, { useState, useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { type Personnel, type TrainingItem, type TagData, type TagColor, type DailySchedule, type TrainingAssignment } from './types';
 import Header from './components/Header';
 import PersonnelListPage from './pages/PersonnelListPage';
 import TrainingItemsPage from './pages/TrainingItemsPage';
 import PersonnelDetailPage from './pages/PersonnelDetailPage';
+import AuthPage from './pages/AuthPage';
+import UserManagementPage from './pages/UserManagementPage';
 import { supabase } from './lib/supabaseClient';
 
 type TagType = 'workArea' | 'type' | 'chapter' | 'job';
 
 const App: React.FC = () => {
+  const [session, setSession] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [trainingItems, setTrainingItems] = useState<TrainingItem[]>([]);
   const [personnelList, setPersonnelList] = useState<Personnel[]>([]);
@@ -28,10 +31,49 @@ const App: React.FC = () => {
     job: { tags: jobTitleTags, setTags: setJobTitleTags },
   };
 
+  // Auth Listener
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) fetchData(session.user.id);
+      else setLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) {
+        fetchData(session.user.id);
+      } else {
+        setTrainingItems([]);
+        setPersonnelList([]);
+        setUserRole(null);
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   // Fetch all data from Supabase
-  const fetchData = async () => {
+  const fetchData = async (userId: string) => {
     try {
       setLoading(true);
+
+      // 0. Fetch User Role
+      const { data: profileData } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+      
+      if (profileData) {
+        setUserRole(profileData.role);
+      } else {
+        setUserRole('user'); // Default fallback
+      }
 
       // 1. Fetch Tags
       const { data: tagsData } = await supabase.from('tags').select('*');
@@ -99,23 +141,18 @@ const App: React.FC = () => {
 
     } catch (error) {
       console.error('Error fetching data:', error);
-      alert('讀取資料失敗，請檢查連線設定');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   // --- Tag Management ---
 
   const addTag = async (type: TagType, value: string, color: TagColor | 'auto' = 'auto') => {
-    if (!value.trim()) return;
+    if (!value || !value.trim()) return;
     const { tags } = tagStateMap[type];
     
-    // Avoid duplicate call if exists locally, but best to rely on DB unique constraint or check
+    // Avoid duplicate call if exists locally
     if (tags.some(t => t.value.toLowerCase() === value.toLowerCase())) return;
 
     let newColor: TagColor;
@@ -134,15 +171,14 @@ const App: React.FC = () => {
       color: newColor
     });
 
-    if (!error) fetchData();
+    if (!error && session) fetchData(session.user.id);
   };
 
   const deleteTag = async (type: TagType, value: string) => {
-    // Find tag ID by value (since we pass value from UI)
     const tag = tagStateMap[type].tags.find(t => t.value === value);
-    if (tag) {
+    if (tag && session) {
       await supabase.from('tags').delete().eq('id', tag.id);
-      fetchData();
+      fetchData(session.user.id);
     }
   };
   
@@ -157,7 +193,6 @@ const App: React.FC = () => {
     if (!oldTag) return;
 
     if (replacementTagId) {
-      // 1. Update references in other tables
       const replacementTag = tagStateMap[tagType].tags.find(t => t.id === replacementTagId);
       if (!replacementTag) return;
 
@@ -171,13 +206,10 @@ const App: React.FC = () => {
         await supabase.from('personnel').update({ job_title: replacementTag.value }).eq('job_title', oldTag.value);
       }
 
-      // 2. Delete the old tag
       await supabase.from('tags').delete().eq('id', tagId);
     } else {
-      // Just update the tag
       await supabase.from('tags').update({ value: newName, color: newColor }).eq('id', tagId);
       
-      // Also update denormalized references if name changed
       if (oldTag.value !== newName) {
          if (tagType === 'workArea') {
             await supabase.from('training_items').update({ work_area: newName }).eq('work_area', oldTag.value);
@@ -190,7 +222,7 @@ const App: React.FC = () => {
           }
       }
     }
-    fetchData();
+    if(session) fetchData(session.user.id);
   };
 
   // --- Training Items Management ---
@@ -209,12 +241,10 @@ const App: React.FC = () => {
       section: item.section
     });
 
-    if (!error) fetchData();
+    if (!error && session) fetchData(session.user.id);
   };
 
   const handleUpdateTrainingItem = async (updatedItem: TrainingItem) => {
-    // Tags might need updating if changed, simplified here to just update item
-    // (In a real app, we'd check if new tags need creation)
     await supabase.from('training_items').update({
       name: updatedItem.name,
       work_area: updatedItem.workArea,
@@ -223,17 +253,17 @@ const App: React.FC = () => {
       section: updatedItem.section
     }).eq('id', updatedItem.id);
 
-    fetchData();
+    if(session) fetchData(session.user.id);
   };
   
   const handleDeleteTrainingItem = async (id: string) => {
     await supabase.from('training_items').delete().eq('id', id);
-    fetchData();
+    if(session) fetchData(session.user.id);
   };
 
   const handleDeleteSelectedTrainingItems = async (idsToDelete: Set<string>) => {
     await supabase.from('training_items').delete().in('id', Array.from(idsToDelete));
-    fetchData();
+    if(session) fetchData(session.user.id);
   };
 
   // --- Personnel Management ---
@@ -251,11 +281,10 @@ const App: React.FC = () => {
       status: '在職'
     });
     
-    if (!error) fetchData();
+    if (!error && session) fetchData(session.user.id);
   };
 
   const handleUpdatePersonnel = async (updatedPersonnel: Personnel) => {
-    // 1. Update Basic Info
     await supabase.from('personnel').update({
       name: updatedPersonnel.name,
       gender: updatedPersonnel.gender,
@@ -265,9 +294,6 @@ const App: React.FC = () => {
       status: updatedPersonnel.status
     }).eq('id', updatedPersonnel.id);
 
-    // 2. Update Training Plan (Progress)
-    // This is tricky because the UI passes the entire object. 
-    // We need to upsert the assignments.
     const progressUpdates = updatedPersonnel.trainingPlan.map(plan => ({
         personnel_id: updatedPersonnel.id,
         item_id: plan.itemId,
@@ -278,26 +304,18 @@ const App: React.FC = () => {
         await supabase.from('training_progress').upsert(progressUpdates);
     }
 
-    // Note: Schedule is handled separately or implicitly if passed here, 
-    // but typically onUpdatePersonnel is called for status/info/progress.
-    // We will refactor onUpdateSchedule separately.
-
-    fetchData();
+    if(session) fetchData(session.user.id);
   };
 
   const handleDeletePersonnel = async (id: string) => {
     await supabase.from('personnel').delete().eq('id', id);
-    fetchData();
+    if(session) fetchData(session.user.id);
   };
 
   const handleAssignItemsToPersonnel = async (itemIds: Set<string>, personnelIds: Set<string>) => {
     const inserts: any[] = [];
     personnelIds.forEach(pId => {
         itemIds.forEach(itemId => {
-            // Check if already exists? Supabase insert can "ignore" on conflict if we set it up, 
-            // OR we can just rely on the fact that we only select unassigned ones in UI logic (but UI logic is client side).
-            // Let's insert with ON CONFLICT DO NOTHING logic via upsert or checking first.
-            // Simple approach: insert, if error (duplicate), ignore.
             inserts.push({
                 personnel_id: pId,
                 item_id: itemId,
@@ -309,15 +327,10 @@ const App: React.FC = () => {
     if (inserts.length > 0) {
         await supabase.from('training_progress').upsert(inserts, { onConflict: 'personnel_id, item_id', ignoreDuplicates: true });
     }
-    fetchData();
+    if(session) fetchData(session.user.id);
   };
   
   const handleUpdateSchedule = async (personnelId: string, schedule: DailySchedule) => {
-    // Full replacement strategy for schedule is easiest:
-    // 1. Delete all future schedules for this person? Or just delete all and re-insert?
-    // To be safe, let's delete all schedules for this person and re-insert based on the new object.
-    // This matches the "Save" behavior of the component.
-    
     await supabase.from('schedules').delete().eq('personnel_id', personnelId);
 
     const inserts: any[] = [];
@@ -334,21 +347,19 @@ const App: React.FC = () => {
     if (inserts.length > 0) {
         await supabase.from('schedules').insert(inserts);
     }
-    fetchData();
+    if(session) fetchData(session.user.id);
   };
 
-  const handleImportTrainingItems = async (pastedData: string) => {
-    const rows = pastedData.trim().replace(/\r/g, "").split('\n');
+  // Updated to accept 2D array from Importer
+  const handleImportTrainingItems = async (rows: any[][]) => {
     const newItems = [];
     
-    for (const rowStr of rows) {
+    for (const row of rows) {
       try {
-        const row = rowStr.split('\t').map(cell => cell.trim());
-        if (row.length < 5) continue;
-        const [name, workArea, typeTag, chapter, section] = row;
+        if (!Array.isArray(row) || row.length < 5) continue;
+        const [name, workArea, typeTag, chapter, section] = row.map(c => String(c || '').trim());
         
         if (name && workArea && typeTag && chapter && section) {
-           // Ensure tags exist
            await addTag('workArea', workArea, 'red');
            await addTag('type', typeTag, 'red');
            await addTag('chapter', chapter, 'red');
@@ -367,19 +378,18 @@ const App: React.FC = () => {
 
     if (newItems.length > 0) {
         await supabase.from('training_items').insert(newItems);
-        fetchData();
+        if(session) fetchData(session.user.id);
     }
   };
 
-  const handleImportPersonnel = async (pastedData: string) => {
-    const rows = pastedData.trim().replace(/\r/g, "").split('\n');
+  // Updated to accept 2D array from Importer
+  const handleImportPersonnel = async (rows: any[][]) => {
     const newPeople = [];
 
-    for (const rowStr of rows) {
+    for (const row of rows) {
       try {
-        const row = rowStr.split('\t').map(cell => cell.trim());
-        if (row.length < 5) continue;
-        const [name, genderStr, dob, phone, jobTitle] = row;
+        if (!Array.isArray(row) || row.length < 5) continue;
+        const [name, genderStr, dob, phone, jobTitle] = row.map(c => String(c || '').trim());
         
         if (name && dob && phone && jobTitle) {
             await addTag('job', jobTitle, 'red');
@@ -398,7 +408,7 @@ const App: React.FC = () => {
     
     if (newPeople.length > 0) {
         await supabase.from('personnel').insert(newPeople);
-        fetchData();
+        if(session) fetchData(session.user.id);
     }
   };
 
@@ -416,9 +426,13 @@ const App: React.FC = () => {
     );
   }
 
+  if (!session) {
+    return <AuthPage />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-100">
-      <Header />
+      <Header userEmail={session.user.email} userRole={userRole} />
       <main>
         <Routes>
           <Route path="/" element={
@@ -459,6 +473,9 @@ const App: React.FC = () => {
               onUpdateSchedule={handleUpdateSchedule}
             />} 
           />
+          <Route path="/user-management" element={
+             userRole === 'admin' ? <UserManagementPage /> : <Navigate to="/" />
+          } />
         </Routes>
       </main>
     </div>

@@ -235,7 +235,7 @@ interface TrainingItemsPageProps {
   onDeleteSelected: (ids: Set<string>) => void;
   onDeleteTag: (tagType: TagType, value: string) => void;
   onEditTag: (tagType: TagType, tagId: string, newName: string, newColor: TagColor, replacementTagId?: string) => void;
-  onImportItems: (data: string) => void;
+  onImportItems: (data: any[][]) => void;
   onAssignItemsToPersonnel: (itemIds: Set<string>, personnelIds: Set<string>) => void;
 }
 

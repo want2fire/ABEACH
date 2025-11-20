@@ -154,7 +154,7 @@ interface PersonnelListPageProps {
   onAddPersonnel: (person: Omit<Personnel, 'id' | 'trainingPlan' | 'status' | 'schedule'>) => void;
   onUpdatePersonnel: (person: Personnel) => void;
   onDeletePersonnel: (id: string) => void;
-  onImportPersonnel: (data: string) => void;
+  onImportPersonnel: (data: any[][]) => void;
 }
 
 const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, trainingItems, jobTitleTags, onAddPersonnel, onUpdatePersonnel, onDeletePersonnel, onImportPersonnel }) => {

@@ -1,8 +1,18 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { supabase } from '../lib/supabaseClient';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  userEmail: string | null;
+  userRole: string | null;
+}
+
+const Header: React.FC<HeaderProps> = ({ userEmail, userRole }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
 
   const activeLinkClass = "bg-sky-600 text-white";
   const inactiveLinkClass = "text-sky-100 hover:bg-sky-500 hover:text-white";
@@ -24,6 +34,15 @@ const Header: React.FC = () => {
       >
         學習項目管理
       </NavLink>
+      {userRole === 'admin' && (
+        <NavLink
+          to="/user-management"
+          className={({ isActive }) => `${isActive ? activeLinkClass : inactiveLinkClass} ${linkClasses}`}
+          onClick={() => setIsMobileMenuOpen(false)}
+        >
+          權限管理
+        </NavLink>
+      )}
     </>
   );
 
@@ -37,8 +56,20 @@ const Header: React.FC = () => {
               {navLinks}
             </div>
           </div>
-          <div className="flex-shrink-0">
-            <h1 className="text-2xl font-bold text-white">學習進度追蹤器</h1>
+          <div className="flex items-center space-x-4">
+            <h1 className="text-xl sm:text-2xl font-bold text-white hidden sm:block">學習進度追蹤器</h1>
+            {userEmail && (
+              <div className="hidden md:flex items-center space-x-3">
+                <span className="text-xs text-sky-200">{userEmail}</span>
+                {userRole && <span className="text-xs bg-sky-800 px-2 py-0.5 rounded text-sky-100">{userRole === 'admin' ? '管理員' : '使用者'}</span>}
+                <button 
+                  onClick={handleSignOut}
+                  className="text-xs bg-sky-800 hover:bg-sky-900 text-white py-1 px-3 rounded"
+                >
+                  登出
+                </button>
+              </div>
+            )}
           </div>
           {/* Mobile Menu Button */}
           <div className="-mr-2 flex md:hidden">
@@ -66,10 +97,24 @@ const Header: React.FC = () => {
 
       {/* Mobile Menu, show/hide based on menu state. */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-sky-700" id="mobile-menu">
+        <div className="md:hidden bg-sky-700 pb-3" id="mobile-menu">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 flex flex-col">
             {navLinks}
           </div>
+          {userEmail && (
+             <div className="pt-4 pb-3 border-t border-sky-600 px-4">
+               <div className="text-sm text-sky-200 mb-2 flex items-center gap-2">
+                  {userEmail}
+                  {userRole && <span className="text-xs bg-sky-800 px-2 py-0.5 rounded text-sky-100">{userRole === 'admin' ? '管理員' : '使用者'}</span>}
+               </div>
+               <button 
+                  onClick={handleSignOut}
+                  className="block w-full text-left text-white bg-sky-800 hover:bg-sky-900 px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  登出
+                </button>
+             </div>
+          )}
         </div>
       )}
     </header>
