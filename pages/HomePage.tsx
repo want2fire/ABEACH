@@ -34,20 +34,20 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
     const isUserRole = user?.role === 'user';
 
     return (
-        <div className="min-h-screen bg-transparent text-stone-900 font-sans relative flex flex-col">
+        <div className="min-h-screen bg-white text-stone-900 font-sans relative flex flex-col">
             {/* Main Content */}
             <div className="relative z-10 flex-grow flex flex-col justify-center items-center px-6 py-20">
                 
                 <div className="max-w-5xl w-full text-center mb-20">
                     <p className="text-xs md:text-sm font-bold tracking-[0.3em] text-orange-600 mb-8 uppercase font-syne">A Beach 101 & Pizza</p>
                     
-                    {/* Main Title: Dela Gothic One, Vivid Dark Text */}
+                    {/* Main Title: Dela Gothic One, Vivid Dark Text, No Italic */}
                     <h1 className="text-4xl md:text-6xl lg:text-7xl font-dela text-stone-900 leading-tight mb-12 tracking-wider drop-shadow-sm">
                         成長不是<br className="md:hidden" />
                         沒有方向的前進
                     </h1>
                     
-                    {/* Quote Carousel */}
+                    {/* Quote Carousel - No Italic */}
                     <div className="h-28 md:h-24 relative max-w-2xl mx-auto mt-4">
                         {QUOTES.map((q, i) => (
                             <div 
@@ -65,13 +65,14 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                 <div className={`grid gap-6 w-full max-w-4xl px-4 ${isUserRole ? 'grid-cols-1 justify-items-center' : 'grid-cols-1 md:grid-cols-2'}`}>
                     
                     {isUserRole ? (
-                         <Link to={`/personnel/${user?.id}`} className="texture-grain group relative overflow-hidden rounded-full bg-white/60 border border-white/60 p-6 backdrop-blur-lg transition-all hover:bg-white/90 hover:shadow-xl hover:shadow-orange-200/30 hover:scale-[1.02] w-full max-w-lg flex items-center justify-between px-10">
-                            <span className="text-xl font-bold text-stone-800 tracking-wide">進入我的學習</span>
+                         // "Enter My Learning" Button: Font changed to standard sans-serif bold
+                         <Link to={`/personnel/${user?.id}`} className="texture-grain group relative overflow-hidden rounded-full bg-white border-stone-200 border p-6 transition-all hover:bg-stone-50 hover:shadow-xl hover:shadow-orange-200/30 hover:scale-[1.02] w-full max-w-lg flex items-center justify-between px-10 shadow-md">
+                            <span className="text-xl font-bold text-stone-800 tracking-wide font-sans">進入我的學習</span>
                             <span className="text-orange-500 font-bold text-2xl group-hover:translate-x-2 transition-transform duration-300">→</span>
                         </Link>
                     ) : (
                         <>
-                            <Link to="/personnel-list" className="texture-grain group relative overflow-hidden rounded-[2rem] bg-white/50 border border-white/60 p-8 md:p-10 backdrop-blur-lg transition-all hover:bg-white/80 hover:shadow-2xl hover:shadow-blue-200/50 hover:scale-[1.02] hover:-translate-y-1">
+                            <Link to="/personnel-list" className="texture-grain group relative overflow-hidden rounded-[2rem] bg-white border border-stone-200 p-8 md:p-10 transition-all hover:bg-stone-50 hover:shadow-2xl hover:shadow-blue-200/50 hover:scale-[1.02] hover:-translate-y-1 shadow-lg">
                                 <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-100 transition-opacity duration-500 group-hover:text-blue-500">
                                     <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                                 </div>
@@ -82,7 +83,7 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                                 </div>
                             </Link>
 
-                            <Link to="/training-items" className="texture-grain group relative overflow-hidden rounded-[2rem] bg-white/50 border border-white/60 p-8 md:p-10 backdrop-blur-lg transition-all hover:bg-white/80 hover:shadow-2xl hover:shadow-orange-200/50 hover:scale-[1.02] hover:-translate-y-1">
+                            <Link to="/training-items" className="texture-grain group relative overflow-hidden rounded-[2rem] bg-white border border-stone-200 p-8 md:p-10 transition-all hover:bg-stone-50 hover:shadow-2xl hover:shadow-orange-200/50 hover:scale-[1.02] hover:-translate-y-1 shadow-lg">
                                 <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-100 transition-opacity duration-500 group-hover:text-orange-500">
                                     <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
                                 </div>

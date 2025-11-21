@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { type Personnel, type TrainingItem, type TrainingAssignment, type TagData, type DailySchedule, type UserRole } from '../types';
@@ -5,7 +6,6 @@ import ProgressBar from '../components/ProgressBar';
 import Tag from '../components/Tag';
 import Calendar from '../components/Calendar';
 
-// ... (Helper functions remain same)
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 const getStartOfWeek = (date: Date) => {
     const d = new Date(date);
@@ -23,7 +23,6 @@ interface PersonnelDetailPageProps {
   onUpdateSchedule: (personnelId: string, schedule: DailySchedule) => void;
 }
 
-// ... (ScheduleItemModal remains same)
 const ScheduleItemModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
@@ -47,7 +46,9 @@ const ScheduleItemModal: React.FC<{
             : [...currentItems, itemId];
         
         const newSchedule = { ...person.schedule, [date]: newItems };
-        if (newItems.length === 0) delete newSchedule[date];
+        if (newItems.length === 0) {
+             newSchedule[date] = [];
+        }
         onUpdateSchedule(newSchedule);
     };
 
@@ -100,7 +101,6 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
   const [selectedScheduleDate, setSelectedScheduleDate] = useState<string | null>(null);
   const [calendarDate, setCalendarDate] = useState(new Date());
   
-  // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
   const [editedPerson, setEditedPerson] = useState<Personnel | null>(null);
 
@@ -114,7 +114,6 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
       }
   }, [person]);
 
-  // ... (scheduleData useMemo logic remains same)
   const scheduleData = useMemo(() => {
     if (!person) return { today: [], thisWeek: [], unfinished: [], nextWorkday: [] };
     const todayStr = getTodayDateString();
@@ -143,7 +142,6 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
 
   if (!person) return <Navigate to="/" />;
   
-  // ... (handlers remain same)
   const handleMonthChange = (offset: number) => setCalendarDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
 
   const handleDateClick = (dateStr: string) => {
@@ -190,7 +188,6 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
   
   const getItemDetails = (itemId: string) => trainingItems.find(item => item.id === itemId);
 
-  // Handle Edit Form
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       if (!editedPerson) return;
       const { name, value } = e.target;
@@ -262,7 +259,6 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
       />
       
       <div className="glass-panel p-10 rounded-3xl mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white/60 relative">
-        {/* Edit Button for Admin/Duty */}
         {canManage && !isEditing && (
             <button 
                 onClick={() => setIsEditing(true)}
@@ -274,7 +270,6 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
 
         {!isEditing ? (
             <div>
-                {/* Name Non-Italic */}
                 <h1 className="text-5xl font-playfair font-bold text-stone-900 mb-4">{person.name}</h1>
                 <div className="flex flex-wrap gap-3">
                     <Tag color={jobTitleTags.find(t=>t.value === person.jobTitle)?.color || 'sky'}>{person.jobTitle}</Tag>
@@ -313,12 +308,9 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
                 </div>
             </div>
         )}
-        {/* Access Code REMOVED for Privacy */}
       </div>
       
-      {/* Rest of the layout for Calendar and Task Lists remains the same */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Calendar & Widgets */}
         <div className="lg:col-span-5 space-y-8">
             <div className="glass-panel p-8 rounded-3xl bg-white/80">
                 <h2 className="text-sm font-bold text-stone-500 mb-6 flex items-center gap-2 uppercase tracking-[0.2em]">
@@ -370,7 +362,6 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
             </div>
         </div>
         
-        {/* Task Lists */}
         <div className="lg:col-span-7 space-y-8">
             <div className="glass-panel p-8 rounded-3xl min-h-[600px] bg-white/80">
                 <h2 className="text-sm font-bold text-stone-500 mb-8 flex items-center gap-2 uppercase tracking-[0.2em]">

@@ -13,6 +13,8 @@ import { supabase } from './lib/supabaseClient';
 
 type TagType = 'workArea' | 'type' | 'chapter' | 'job';
 
+const SESSION_DURATION = 30 * 60 * 1000; // 30 minutes
+
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Personnel | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +43,22 @@ const App: React.FC = () => {
       
       // Check for stored session
       const storedUserId = localStorage.getItem('app_user_id');
-      if (storedUserId) {
+      const storedTimestamp = localStorage.getItem('app_login_timestamp');
+
+      if (storedUserId && storedTimestamp) {
+        const now = Date.now();
+        const loginTime = parseInt(storedTimestamp, 10);
+
+        // Check if session expired
+        if (now - loginTime > SESSION_DURATION) {
+            // Session expired
+            localStorage.removeItem('app_user_id');
+            localStorage.removeItem('app_login_timestamp');
+            setLoading(false);
+            return;
+        }
+
+        // Session valid, fetch user
         const { data, error } = await supabase
           .from('personnel')
           .select('*')
@@ -53,6 +70,7 @@ const App: React.FC = () => {
           fetchData();
         } else {
           localStorage.removeItem('app_user_id');
+          localStorage.removeItem('app_login_timestamp');
           setLoading(false);
         }
       } else {
@@ -65,12 +83,14 @@ const App: React.FC = () => {
 
   const handleLogin = (user: Personnel) => {
     localStorage.setItem('app_user_id', user.id);
+    localStorage.setItem('app_login_timestamp', Date.now().toString());
     setCurrentUser(user);
     fetchData();
   };
 
   const handleLogout = () => {
     localStorage.removeItem('app_user_id');
+    localStorage.removeItem('app_login_timestamp');
     setCurrentUser(null);
     setTrainingItems([]);
     setPersonnelList([]);
@@ -79,7 +99,8 @@ const App: React.FC = () => {
   // Fetch all data from Supabase
   const fetchData = async () => {
     try {
-      setLoading(true);
+      // We don't set loading to true here to avoid flashing loading screen on background updates
+      // setLoading(true); 
 
       // 1. Fetch Tags
       const { data: tagsData } = await supabase.from('tags').select('*');
@@ -124,7 +145,10 @@ const App: React.FC = () => {
               if (!mySchedule[s.work_date]) {
                 mySchedule[s.work_date] = [];
               }
-              mySchedule[s.work_date].push(s.item_id);
+              // Only push valid item IDs (not null placeholders)
+              if (s.item_id) {
+                  mySchedule[s.work_date].push(s.item_id);
+              }
             });
 
           return {
@@ -152,7 +176,7 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
-      setLoading(false);
+      if (loading) setLoading(false); // Only unset loading if it was set initially
     }
   };
 
@@ -302,19 +326,49 @@ const App: React.FC = () => {
   };
   
   const handleUpdateSchedule = async (personnelId: string, schedule: DailySchedule) => {
-    await supabase.from('schedules').delete().eq('personnel_id', personnelId);
-    const inserts: any[] = [];
-    Object.entries(schedule).forEach(([date, itemIds]) => {
-        itemIds.forEach(itemId => {
-            inserts.push({ personnel_id: personnelId, item_id: itemId, work_date: date });
+    if (!personnelId) return;
+
+    try {
+        // 1. Delete existing schedules
+        const { error: deleteError } = await supabase.from('schedules').delete().eq('personnel_id', personnelId);
+        if (deleteError) {
+            console.error('Failed to delete old schedule', deleteError);
+            throw deleteError;
+        }
+
+        // 2. Prepare new inserts
+        const inserts: any[] = [];
+        Object.entries(schedule).forEach(([date, itemIds]) => {
+            // Ensure date is valid string "YYYY-MM-DD"
+            if (date) {
+                if (Array.isArray(itemIds) && itemIds.length > 0) {
+                    // Has tasks
+                    itemIds.forEach(itemId => {
+                        inserts.push({ personnel_id: personnelId, item_id: itemId, work_date: date });
+                    });
+                } else {
+                    // No tasks, but is a workday -> insert placeholder
+                    inserts.push({ personnel_id: personnelId, item_id: null, work_date: date });
+                }
+            }
         });
-    });
-    if (inserts.length > 0) await supabase.from('schedules').insert(inserts);
+
+        // 3. Insert new records
+        if (inserts.length > 0) {
+            const { error: insertError } = await supabase.from('schedules').insert(inserts);
+            if (insertError) {
+                console.error('Failed to insert new schedule', insertError);
+            }
+        }
+    } catch (e) {
+        console.error('Error updating schedule:', e);
+    }
+
+    // 4. Refresh local state
     fetchData();
   };
 
   const handleImportTrainingItems = async (rows: any[][]) => {
-    // Reuse existing logic
     const newItems: any[] = [];
     const availableColors: TagColor[] = ['sky', 'green', 'amber', 'indigo', 'pink', 'purple', 'slate', 'red'];
     const knownTags = {
@@ -367,7 +421,6 @@ const App: React.FC = () => {
   };
 
   const handleImportPersonnel = async (rows: any[][]) => {
-    // Reuse existing logic
     const newPeople: any[] = [];
     const allowedTitles = new Set(['外場DUTY', '內場DUTY', 'A TEAM', '管理員', '一般員工']);
     for (const row of rows) {
@@ -399,88 +452,85 @@ const App: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#ffffff] flex justify-center items-center">
-        <div className="text-pizza-500 text-xl font-syne font-bold tracking-widest flex items-center gap-4">
-           <div className="w-3 h-3 bg-pizza-500 rounded-full animate-ping"></div>
-           載入中...
-        </div>
-      </div>
-    );
-  }
-
-  if (!currentUser) {
-    return <AuthPage onLogin={handleLogin} />;
-  }
-
   const isHomePage = location.pathname === '/';
 
   return (
-    <div className="min-h-screen relative font-sans text-stone-900">
-        {/* Global Vivid Light Aurora Background */}
+    <div className="min-h-screen relative font-sans text-stone-900 bg-white">
+        {/* Global Vivid Light Aurora Background - Always rendered */}
         <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-            {/* Light, vivid colors: Sky Blue, Warm Orange, Soft Pink (instead of muddy purple) */}
-            <div className="absolute top-[-10%] left-[-10%] w-[90vw] h-[90vw] bg-sky-200/60 rounded-full blur-[120px] animate-blob mix-blend-multiply"></div>
-            <div className="absolute top-[10%] right-[-10%] w-[90vw] h-[90vw] bg-orange-200/60 rounded-full blur-[120px] animate-blob animation-delay-2000 mix-blend-multiply"></div>
-            <div className="absolute bottom-[-20%] left-[20%] w-[80vw] h-[80vw] bg-pink-200/60 rounded-full blur-[120px] animate-blob animation-delay-4000 mix-blend-multiply"></div>
+            {/* Vivid light colors: Sky Blue, Orange, Pink. More saturation (300) for better visibility against white */}
+            <div className="absolute top-[-10%] left-[-10%] w-[90vw] h-[90vw] bg-sky-300/50 rounded-full blur-[120px] animate-blob mix-blend-multiply"></div>
+            <div className="absolute top-[10%] right-[-10%] w-[90vw] h-[90vw] bg-orange-300/50 rounded-full blur-[120px] animate-blob animation-delay-2000 mix-blend-multiply"></div>
+            <div className="absolute bottom-[-20%] left-[20%] w-[80vw] h-[80vw] bg-pink-300/50 rounded-full blur-[120px] animate-blob animation-delay-4000 mix-blend-multiply"></div>
         </div>
         
         {/* Global Grain Overlay */}
         <div className="texture-grain fixed inset-0 z-0 pointer-events-none opacity-30"></div>
 
-      <div className="relative z-10 flex flex-col min-h-screen">
-        <Header userName={currentUser.name} userRole={currentUser.role} onSignOut={handleLogout} isHomePage={isHomePage} />
-        <main className="flex-grow">
-          <Routes>
-            <Route path="/" element={<HomePage user={currentUser} />} />
-            <Route path="/personnel-list" element={
-              <PersonnelListPage 
-                personnelList={personnelList} 
-                trainingItems={trainingItems}
-                jobTitleTags={jobTitleTags}
-                userRole={currentUser.role}
-                onAddPersonnel={handleAddPersonnel}
-                onUpdatePersonnel={handleUpdatePersonnel}
-                onDeletePersonnel={handleDeletePersonnel}
-                onImportPersonnel={handleImportPersonnel}
-              />} 
-            />
-            <Route path="/training-items" element={
-              <TrainingItemsPage 
-                items={trainingItems}
-                personnelList={personnelList}
-                workAreaTags={workAreaTags}
-                typeTags={typeTags}
-                chapterTags={chapterTags}
-                jobTitleTags={jobTitleTags}
-                userRole={currentUser.role}
-                onAddItem={handleAddTrainingItem} 
-                onUpdateItem={handleUpdateTrainingItem}
-                onDeleteItem={handleDeleteTrainingItem}
-                onDeleteSelected={handleDeleteSelectedTrainingItems}
-                onDeleteTag={deleteTag}
-                onEditTag={handleEditTag}
-                onImportItems={handleImportTrainingItems}
-                onAssignItemsToPersonnel={handleAssignItemsToPersonnel}
-              />} 
-            />
-            <Route path="/personnel/:personnelId" element={
-              <PersonnelDetailPage
-                personnelList={personnelList}
-                trainingItems={trainingItems}
-                jobTitleTags={jobTitleTags}
-                userRole={currentUser.role}
-                onUpdatePersonnel={handleUpdatePersonnel}
-                onUpdateSchedule={handleUpdateSchedule}
-              />} 
-            />
-            <Route path="/user-management" element={
-              currentUser.role === 'admin' ? <UserManagementPage /> : <Navigate to="/" />
-            } />
-          </Routes>
-        </main>
-      </div>
+      {loading ? (
+        <div className="min-h-screen flex justify-center items-center relative z-20">
+            <div className="text-pizza-500 text-xl font-syne font-bold tracking-widest flex items-center gap-4">
+            <div className="w-3 h-3 bg-pizza-500 rounded-full animate-ping"></div>
+            載入中...
+            </div>
+        </div>
+      ) : !currentUser ? (
+        // AuthPage renders inside the same background context
+        <AuthPage onLogin={handleLogin} />
+      ) : (
+        <div className="relative z-10 flex flex-col min-h-screen">
+            <Header userName={currentUser.name} userRole={currentUser.role} onSignOut={handleLogout} isHomePage={isHomePage} />
+            <main className="flex-grow">
+            <Routes>
+                <Route path="/" element={<HomePage user={currentUser} />} />
+                <Route path="/personnel-list" element={
+                <PersonnelListPage 
+                    personnelList={personnelList} 
+                    trainingItems={trainingItems}
+                    jobTitleTags={jobTitleTags}
+                    userRole={currentUser.role}
+                    onAddPersonnel={handleAddPersonnel}
+                    onUpdatePersonnel={handleUpdatePersonnel}
+                    onDeletePersonnel={handleDeletePersonnel}
+                    onImportPersonnel={handleImportPersonnel}
+                />} 
+                />
+                <Route path="/training-items" element={
+                <TrainingItemsPage 
+                    items={trainingItems}
+                    personnelList={personnelList}
+                    workAreaTags={workAreaTags}
+                    typeTags={typeTags}
+                    chapterTags={chapterTags}
+                    jobTitleTags={jobTitleTags}
+                    userRole={currentUser.role}
+                    onAddItem={handleAddTrainingItem} 
+                    onUpdateItem={handleUpdateTrainingItem}
+                    onDeleteItem={handleDeleteTrainingItem}
+                    onDeleteSelected={handleDeleteSelectedTrainingItems}
+                    onDeleteTag={deleteTag}
+                    onEditTag={handleEditTag}
+                    onImportItems={handleImportTrainingItems}
+                    onAssignItemsToPersonnel={handleAssignItemsToPersonnel}
+                />} 
+                />
+                <Route path="/personnel/:personnelId" element={
+                <PersonnelDetailPage
+                    personnelList={personnelList}
+                    trainingItems={trainingItems}
+                    jobTitleTags={jobTitleTags}
+                    userRole={currentUser.role}
+                    onUpdatePersonnel={handleUpdatePersonnel}
+                    onUpdateSchedule={handleUpdateSchedule}
+                />} 
+                />
+                <Route path="/user-management" element={
+                currentUser.role === 'admin' ? <UserManagementPage /> : <Navigate to="/" />
+                } />
+            </Routes>
+            </main>
+        </div>
+      )}
     </div>
   );
 };

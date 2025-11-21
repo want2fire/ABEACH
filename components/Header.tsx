@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 
@@ -11,11 +12,12 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ userName, userRole, onSignOut, isHomePage = false }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const textColorClass = isHomePage ? 'text-stone-900' : 'text-stone-900';
-  const subTextColorClass = isHomePage ? 'text-stone-500' : 'text-stone-500';
+  const textColorClass = 'text-stone-900';
+  const subTextColorClass = 'text-stone-500';
   
+  // Solid white background for Home Page as requested
   const glassPanelClass = isHomePage 
-    ? 'bg-white/90 backdrop-blur-md border-b border-stone-100 text-stone-900 shadow-sm' 
+    ? 'bg-white border-b border-stone-100 text-stone-900 shadow-sm' 
     : 'glass-panel text-stone-900';
 
   const activeLinkClass = `font-bold after:content-[''] after:block after:w-full after:h-0.5 after:bg-pizza-500 after:mt-1 after:scale-100 transition-all text-pizza-600`;
@@ -36,6 +38,13 @@ const Header: React.FC<HeaderProps> = ({ userName, userRole, onSignOut, isHomePa
 
   const navLinks = (
     <>
+      <NavLink
+        to="/"
+        className={({ isActive }) => `${isActive ? activeLinkClass : inactiveLinkClass} ${linkClasses}`}
+        onClick={() => setIsMobileMenuOpen(false)}
+      >
+        首頁
+      </NavLink>
       {canViewLists && (
         <>
           <NavLink
@@ -50,7 +59,7 @@ const Header: React.FC<HeaderProps> = ({ userName, userRole, onSignOut, isHomePa
             className={({ isActive }) => `${isActive ? activeLinkClass : inactiveLinkClass} ${linkClasses}`}
             onClick={() => setIsMobileMenuOpen(false)}
           >
-            學習進度
+            學習任務
           </NavLink>
         </>
       )}
@@ -79,7 +88,7 @@ const Header: React.FC<HeaderProps> = ({ userName, userRole, onSignOut, isHomePa
             <h1 className="sm:hidden text-xl font-syne font-bold text-pizza-500">101</h1>
             
             {/* Desktop Menu */}
-            <div className={`hidden md:flex items-baseline space-x-2 lg:space-x-6 ml-4 border-l ${isHomePage ? 'border-stone-300/50' : 'border-stone-300'} pl-6 overflow-x-auto scrollbar-hide`}>
+            <div className={`hidden md:flex items-baseline space-x-2 lg:space-x-6 ml-4 border-l ${isHomePage ? 'border-stone-200' : 'border-stone-300'} pl-6 overflow-x-auto scrollbar-hide`}>
               {navLinks}
             </div>
           </Link>

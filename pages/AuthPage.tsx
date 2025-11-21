@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Personnel } from '../types';
@@ -39,20 +40,11 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center p-4 relative overflow-hidden">
-        {/* Background: Sunny Beach */}
-        <div className="absolute inset-0 z-0">
-            <img 
-                src="https://images.unsplash.com/photo-1615574548791-5bf7e9ff67e9?q=80&w=2071&auto=format&fit=crop" 
-                alt="Sunny Beach" 
-                className="w-full h-full object-cover"
-            />
-            {/* Light warm overlay */}
-            <div className="absolute inset-0 bg-white/30 backdrop-blur-[3px]"></div>
-        </div>
+    <div className="min-h-screen flex flex-col justify-center items-center p-4 relative overflow-hidden bg-transparent">
+      {/* Global background is handled in App.tsx now */}
 
       <div className="relative z-10 w-full max-w-md">
-        <div className="glass-panel rounded-3xl p-10 shadow-2xl border border-white/40 backdrop-blur-xl bg-white/80">
+        <div className="glass-panel rounded-3xl p-10 shadow-2xl border border-white/40 backdrop-blur-xl bg-white/60">
           <div className="text-center mb-10">
             <h1 className="text-4xl font-syne font-bold text-stone-900 mb-2 tracking-tight">
               A BEACH 101
@@ -75,7 +67,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="glass-input w-full px-5 py-4 rounded-xl outline-none transition-all text-lg placeholder-stone-400"
+                className="glass-input w-full px-5 py-4 rounded-xl outline-none transition-all text-lg placeholder-stone-400 bg-white/80"
                 placeholder="請輸入姓名"
               />
             </div>
@@ -86,7 +78,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                 required
                 value={accessCode}
                 onChange={(e) => setAccessCode(e.target.value)}
-                className="glass-input w-full px-5 py-4 rounded-xl outline-none transition-all text-lg placeholder-stone-400 text-center tracking-[0.5em]"
+                className="glass-input w-full px-5 py-4 rounded-xl outline-none transition-all text-lg placeholder-stone-400 text-center tracking-[0.5em] bg-white/80"
                 placeholder="••••"
                 maxLength={4}
               />
@@ -94,7 +86,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full mt-6 py-4 px-6 rounded-xl bg-pizza-500 hover:bg-pizza-600 text-white font-bold text-lg tracking-wide shadow-lg shadow-pizza-200 transition-all transform hover:-translate-y-1 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+              className="texture-grain w-full mt-6 py-4 px-6 rounded-xl bg-pizza-500 hover:bg-pizza-600 text-white font-bold text-lg tracking-wide shadow-lg shadow-pizza-200 transition-all transform hover:-translate-y-1 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
             >
               {isLoading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -105,8 +97,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
             </button>
           </form>
         </div>
-        <div className="text-center mt-8 text-stone-600 text-xs font-syne tracking-widest">
-            A BEACH 101 & PIZZA &copy; {new Date().getFullYear()}
+        <div className="text-center mt-8 text-stone-600 text-xs font-syne tracking-widest font-bold">
+            A BEACH 101 & PIZZA &copy; {new Date().getFullYear()};
         </div>
       </div>
     </div>

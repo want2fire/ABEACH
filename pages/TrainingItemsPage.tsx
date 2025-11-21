@@ -1,4 +1,6 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { type TrainingItem, type TagData, type TagColor, type Personnel, type UserRole } from '../types';
 import { TrashIcon } from '../components/icons/TrashIcon';
 import Tag from '../components/Tag';
@@ -6,7 +8,6 @@ import Importer from '../components/Importer';
 
 type TagType = 'workArea' | 'type' | 'chapter' | 'job';
 
-// ... (AssignToPersonnelModal, EditTagModal, Pagination remain same)
 const AssignToPersonnelModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -173,7 +174,6 @@ const TagManager: React.FC<{
           <span key={tag.id} className="group relative inline-flex">
             <Tag color={tag.color} className="cursor-default px-4 py-1.5 text-xs">{tag.value}</Tag>
             {canEdit && (
-                // Removed hidden group-hover:flex logic, always visible for tablet/mobile access
                 <div className="absolute -top-3 -right-3 flex bg-white rounded-full border border-stone-200 shadow-xl scale-90 z-10">
                     <button onClick={() => onEdit(tag, tagType)} className="p-1.5 text-sky-500 hover:text-sky-600"><svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg></button>
                     <button onClick={() => onDelete(tagType, tag.value)} className="p-1.5 text-red-500 hover:text-red-600"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
@@ -225,6 +225,11 @@ interface TrainingItemsPageProps {
 }
 
 const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelList, workAreaTags, typeTags, chapterTags, jobTitleTags, userRole, onAddItem, onUpdateItem, onDeleteItem, onDeleteSelected, onDeleteTag, onEditTag, onImportItems, onAssignItemsToPersonnel }) => {
+  
+  if (userRole === 'user') {
+      return <Navigate to="/" />;
+  }
+
   // State
   const [newItemName, setNewItemName] = useState('');
   const [newItemWorkArea, setNewItemWorkArea] = useState('');
@@ -234,6 +239,7 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   
   const [filters, setFilters] = useState({ workArea: 'all', chapter: 'all' });
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedItems, setSelectedItems] = useState(new Set<string>());
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editedItemData, setEditedItemData] = useState<Omit<TrainingItem, 'id'>>({ name: '', workArea: '', typeTag: '', chapter: '' });
@@ -260,9 +266,17 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
     return items.filter(item => {
       const workAreaMatch = filters.workArea === 'all' || item.workArea === filters.workArea;
       const chapterMatch = filters.chapter === 'all' || item.chapter === filters.chapter;
-      return workAreaMatch && chapterMatch;
+      
+      const searchLower = searchQuery.toLowerCase();
+      const searchMatch = searchQuery === '' || 
+          item.name.toLowerCase().includes(searchLower) ||
+          item.workArea.toLowerCase().includes(searchLower) ||
+          item.typeTag.toLowerCase().includes(searchLower) ||
+          item.chapter.toLowerCase().includes(searchLower);
+
+      return workAreaMatch && chapterMatch && searchMatch;
     });
-  }, [items, filters]);
+  }, [items, filters, searchQuery]);
 
   const sortedItems = useMemo(() => 
     [...filteredItems].sort((a, b) => {
@@ -352,11 +366,9 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
         onSave={onEditTag}
       />
 
-      {/* items-start for mobile title alignment */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
         <div>
-            {/* Title left aligned and non-italic on mobile as requested */}
-            <h1 className="text-4xl md:text-5xl font-playfair text-left font-bold text-stone-900 mb-2 not-italic">學習項目</h1>
+            <h1 className="text-4xl md:text-5xl font-playfair text-left font-bold text-stone-900 mb-2">學習任務</h1>
             <p className="text-stone-500 text-sm font-bold tracking-widest uppercase text-left">課程標準與教材管理</p>
         </div>
         {canManage && (
@@ -398,7 +410,14 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
                 <div className="w-2 h-2 rounded-full bg-pizza-500"></div>
                 <span className="text-stone-800 font-bold text-sm">總計: {sortedItems.length} 筆</span>
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
+              <input 
+                type="text" 
+                placeholder="搜尋..." 
+                value={searchQuery} 
+                onChange={(e) => setSearchQuery(e.target.value)} 
+                className="glass-input px-4 py-2 rounded-lg text-xs font-bold w-40 sm:w-auto"
+              />
               <select name="workArea" value={filters.workArea} onChange={handleFilterChange} className="glass-input px-4 py-2 rounded-lg text-xs border-none uppercase font-bold">
                   <option value="all">全部區域</option>
                   {workAreaTags.map(t => <option key={t.id} value={t.value}>{t.value}</option>)}
@@ -429,13 +448,10 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
                         <input type="checkbox" className="rounded border-stone-300 text-pizza-500 focus:ring-pizza-500" checked={filteredItems.length > 0 && selectedItems.size === filteredItems.length} onChange={handleSelectAll}/>
                     </th>
                 )}
-                {/* Whitespace nowrap for table headers */}
                 <th className="px-6 py-5 whitespace-nowrap">項目名稱</th>
                 <th className="px-6 py-5 whitespace-nowrap">工作區</th>
-                {/* Type hidden on mobile */}
                 <th className="px-6 py-5 whitespace-nowrap hidden md:table-cell">類型</th>
                 <th className="px-6 py-5 whitespace-nowrap">章節</th>
-                {/* Edit column only visible on desktop */}
                 {canManage && <th className="px-6 py-5 text-right hidden md:table-cell whitespace-nowrap">編輯</th>}
               </tr>
             </thead>
@@ -466,7 +482,6 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
                               <div className="flex flex-col items-center gap-3">
                                 <input type="checkbox" className="rounded border-stone-300 text-pizza-500 focus:ring-pizza-500" checked={selectedItems.has(item.id)} onChange={() => handleToggleSelectItem(item.id)}/>
                                 
-                                {/* Mobile Action Buttons: Visible under Checkbox */}
                                 <div className="md:hidden flex flex-col gap-3 mt-2">
                                      <button onClick={() => handleStartEdit(item)} className="text-stone-400 hover:text-stone-800">
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -478,14 +493,11 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
                               </div>
                           </td>
                       )}
-                      {/* Whitespace nowrap added to prevent vertical text */}
                       <td className="px-6 py-4 font-bold text-stone-800 group-hover:text-pizza-600 text-base whitespace-nowrap align-middle">{item.name}</td>
                       <td className="px-6 py-4 align-middle"><Tag color={workAreaTags.find(t=>t.value===item.workArea)?.color || 'red'}>{item.workArea}</Tag></td>
-                      {/* Hidden type tag on mobile */}
                       <td className="px-6 py-4 hidden md:table-cell align-middle"><Tag color={typeTags.find(t=>t.value===item.typeTag)?.color || 'red'}>{item.typeTag}</Tag></td>
                       <td className="px-6 py-4 align-middle"><Tag color={chapterTags.find(t=>t.value===item.chapter)?.color || 'red'}>{item.chapter}</Tag></td>
                       
-                      {/* Desktop Edit Buttons: Always visible (removed opacity-0 group-hover:opacity-100) for tablet support */}
                       {canManage && (
                           <td className="px-6 py-4 text-right space-x-3 hidden md:table-cell align-middle">
                             <button onClick={() => handleStartEdit(item)} className="text-stone-400 hover:text-stone-800 font-bold text-xs uppercase">編輯</button>

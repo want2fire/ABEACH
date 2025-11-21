@@ -1,12 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { type Personnel, type TrainingItem, type TagData, type UserRole } from '../types';
 import ProgressBar from '../components/ProgressBar';
 import Tag from '../components/Tag';
 import { TrashIcon } from '../components/icons/TrashIcon';
 import Importer from '../components/Importer';
 
-// ... (calculateProgress and getNextItemToLearn helper functions remain same)
 const calculateProgress = (person: Personnel): number => {
     if (person.trainingPlan.length === 0) return 100;
     const completedCount = person.trainingPlan.filter(p => p.completed).length;
@@ -102,7 +102,7 @@ const PersonnelCard: React.FC<{
         <div className="glass-card relative group rounded-3xl p-6 flex flex-col h-full border border-white hover:border-pizza-400 bg-white/60">
             
             {canEdit && (
-                // Removed opacity-0 group-hover:opacity-100 to ensure actions are accessible on touch devices
+                // Actions accessible
                 <div className="absolute top-4 right-4 flex space-x-2 z-20">
                     <button onClick={() => setIsEditing(true)} className="p-2 rounded-full bg-white text-stone-500 hover:text-pizza-500 hover:bg-stone-50 transition-colors border border-stone-200 shadow-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
@@ -127,13 +127,13 @@ const PersonnelCard: React.FC<{
 
             <div className="relative z-10 mt-auto space-y-5">
                 <div className="bg-white/50 rounded-xl p-4 border border-stone-100">
-                    <p className="text-[10px] uppercase tracking-widest text-stone-500 mb-1 font-bold">當前任務</p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-stone-500 mb-1">當前任務</p>
                     <p className="text-sm text-stone-800 font-medium truncate opacity-90">{getNextItemToLearn(person, trainingItems)}</p>
                 </div>
                 
                 <div>
                     <div className="flex justify-between items-end mb-2">
-                        <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">完成進度</span>
+                        <span className="text-xs font-bold text-stone-500 uppercase tracking-widest">完成進度</span>
                         <span className="text-xl font-syne font-bold text-pizza-500">{Math.round(progress)}%</span>
                     </div>
                     <ProgressBar progress={progress} />
@@ -143,7 +143,6 @@ const PersonnelCard: React.FC<{
     );
 };
 
-// ... (PersonnelListPageProps remains same)
 interface PersonnelListPageProps {
   personnelList: Personnel[];
   trainingItems: TrainingItem[];
@@ -156,6 +155,11 @@ interface PersonnelListPageProps {
 }
 
 const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, trainingItems, jobTitleTags, userRole, onAddPersonnel, onUpdatePersonnel, onDeletePersonnel, onImportPersonnel }) => {
+  
+  if (userRole === 'user') {
+      return <Navigate to="/" />;
+  }
+
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [isImporterOpen, setIsImporterOpen] = useState(false);
   const [newName, setNewName] = useState('');
@@ -239,11 +243,9 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
         columns={['姓名', '性別', '出生年月日', '電話', '職等', '身分證末四碼']}
       />
       
-      {/* Fixed alignment: items-start to align title left on mobile */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
         <div>
-            {/* Title left aligned and non-italic on mobile */}
-            <h1 className="text-4xl md:text-5xl font-playfair text-left font-bold text-stone-900 mb-2 not-italic">夥伴名單</h1>
+            <h1 className="text-4xl md:text-5xl font-playfair text-left font-bold text-stone-900 mb-2">夥伴名單</h1>
             <p className="text-stone-500 text-sm font-bold tracking-widest uppercase text-left">管理您的團隊與進度</p>
         </div>
         
@@ -265,7 +267,6 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
         )}
       </div>
       
-      {/* ... (Form logic remains same) */}
       {isFormVisible && canManage && (
         <div className="glass-panel p-10 rounded-3xl mb-16 animate-fade-in border border-white">
             <div className="flex items-center justify-between mb-8">
