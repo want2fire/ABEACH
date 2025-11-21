@@ -1,5 +1,5 @@
 
-export type TagColor = 'slate' | 'sky' | 'green' | 'amber' | 'red' | 'indigo' | 'pink' | 'purple';
+export type TagColor = string;
 
 export interface TagData {
   id: string;

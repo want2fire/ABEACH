@@ -34,7 +34,7 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
     const isUserRole = user?.role === 'user';
 
     return (
-        <div className="min-h-screen bg-white text-stone-900 font-sans relative flex flex-col">
+        <div className="min-h-screen bg-transparent text-stone-900 font-sans relative flex flex-col">
             {/* Main Content */}
             <div className="relative z-10 flex-grow flex flex-col justify-center items-center px-6 py-20">
                 
@@ -65,7 +65,7 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                 <div className={`grid gap-6 w-full max-w-4xl px-4 ${isUserRole ? 'grid-cols-1 justify-items-center' : 'grid-cols-1 md:grid-cols-2'}`}>
                     
                     {isUserRole ? (
-                         // "Enter My Learning" Button: Font changed to standard sans-serif bold
+                         // "Enter My Learning" Button
                          <Link to={`/personnel/${user?.id}`} className="texture-grain group relative overflow-hidden rounded-full bg-white border-stone-200 border p-6 transition-all hover:bg-stone-50 hover:shadow-xl hover:shadow-orange-200/30 hover:scale-[1.02] w-full max-w-lg flex items-center justify-between px-10 shadow-md">
                             <span className="text-xl font-bold text-stone-800 tracking-wide font-sans">進入我的學習</span>
                             <span className="text-orange-500 font-bold text-2xl group-hover:translate-x-2 transition-transform duration-300">→</span>
@@ -87,7 +87,7 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                                 <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-100 transition-opacity duration-500 group-hover:text-orange-500">
                                     <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
                                 </div>
-                                <h3 className="text-2xl md:text-3xl font-dela text-stone-800 mb-3">學習進度</h3>
+                                <h3 className="text-2xl md:text-3xl font-dela text-stone-800 mb-3">學習任務</h3>
                                 <p className="text-stone-500 text-sm md:text-base font-medium">課程標準與進度追蹤</p>
                                 <div className="mt-8 md:mt-12 flex items-center text-stone-900 text-xs md:text-sm font-bold uppercase tracking-widest group-hover:text-orange-600 transition-colors">
                                     進入頁面 <span className="ml-3 group-hover:translate-x-2 transition-transform duration-300">→</span>

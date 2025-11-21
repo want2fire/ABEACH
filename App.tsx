@@ -456,12 +456,12 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen relative font-sans text-stone-900 bg-white">
-        {/* Global Vivid Light Aurora Background - Always rendered */}
+        {/* Global Vivid Light Aurora Background - Adjusted colors to remove "dirty" look */}
         <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-            {/* Vivid light colors: Sky Blue, Orange, Pink. More saturation (300) for better visibility against white */}
-            <div className="absolute top-[-10%] left-[-10%] w-[90vw] h-[90vw] bg-sky-300/50 rounded-full blur-[120px] animate-blob mix-blend-multiply"></div>
-            <div className="absolute top-[10%] right-[-10%] w-[90vw] h-[90vw] bg-orange-300/50 rounded-full blur-[120px] animate-blob animation-delay-2000 mix-blend-multiply"></div>
-            <div className="absolute bottom-[-20%] left-[20%] w-[80vw] h-[80vw] bg-pink-300/50 rounded-full blur-[120px] animate-blob animation-delay-4000 mix-blend-multiply"></div>
+            {/* Changed to Cyan, Yellow, Rose for a cleaner, brighter palette without mix-blend-multiply causing murkiness */}
+            <div className="absolute top-[-10%] left-[-10%] w-[90vw] h-[90vw] bg-cyan-200/60 rounded-full blur-[120px] animate-blob"></div>
+            <div className="absolute top-[10%] right-[-10%] w-[90vw] h-[90vw] bg-yellow-200/60 rounded-full blur-[120px] animate-blob animation-delay-2000"></div>
+            <div className="absolute bottom-[-20%] left-[20%] w-[80vw] h-[80vw] bg-rose-200/60 rounded-full blur-[120px] animate-blob animation-delay-4000"></div>
         </div>
         
         {/* Global Grain Overlay */}
@@ -475,7 +475,6 @@ const App: React.FC = () => {
             </div>
         </div>
       ) : !currentUser ? (
-        // AuthPage renders inside the same background context
         <AuthPage onLogin={handleLogin} />
       ) : (
         <div className="relative z-10 flex flex-col min-h-screen">
