@@ -9,80 +9,330 @@ import { PlusIcon } from '../components/icons/PlusIcon';
 import Calendar from '../components/Calendar';
 
 // Reusing icons from other files for consistency
-const ChevronUpIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" /></svg>;
-const ChevronDownIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>;
-const ImageIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
-const VideoIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
-const TypeIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" /></svg>;
-const SaveIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>;
-const TableIcon = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M3 14h18m-9-4v8m-7-8v8m14-8v8M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>;
+interface IconProps extends React.SVGProps<SVGSVGElement> {}
 
-// --- Block Renderer (Copied to be independent) ---
+const ChevronUpIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" /></svg>;
+const ChevronDownIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>;
+const ImageIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
+const VideoIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+const TypeIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" /></svg>;
+const SaveIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>;
+const TableIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M3 14h18m-9-4v8m-7-8v8m14-8v8M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>;
+const DocumentIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>;
+const ToggleIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>;
+const LinkIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>;
+const EyeIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>;
+const EyeSlashIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>;
+
+// --- Link Input Modal ---
+const LinkInputModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: (text: string, url: string) => void;
+}> = ({ isOpen, onClose, onConfirm }) => {
+    const [text, setText] = useState('');
+    const [url, setUrl] = useState('');
+
+    useEffect(() => {
+        if (isOpen) {
+            setText('');
+            setUrl('');
+        }
+    }, [isOpen]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-fade-in">
+                <h3 className="text-lg font-bold text-stone-800 mb-4">插入超連結</h3>
+                <div className="space-y-3">
+                    <div>
+                        <label className="block text-xs font-bold text-stone-500 uppercase mb-1">連結文字</label>
+                        <input 
+                            type="text" 
+                            value={text} 
+                            onChange={(e) => setText(e.target.value)} 
+                            className="glass-input w-full px-3 py-2 rounded-lg" 
+                            placeholder="例如：點擊這裡"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-stone-500 uppercase mb-1">網址 (URL)</label>
+                        <input 
+                            type="text" 
+                            value={url} 
+                            onChange={(e) => setUrl(e.target.value)} 
+                            className="glass-input w-full px-3 py-2 rounded-lg" 
+                            placeholder="https://..."
+                        />
+                    </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                    <button onClick={onClose} className="flex-1 py-2 bg-stone-100 rounded-lg text-xs font-bold text-stone-600">取消</button>
+                    <button 
+                        onClick={() => { if (text && url) { onConfirm(text, url); onClose(); } }}
+                        className="flex-1 py-2 bg-pizza-500 text-white rounded-lg text-xs font-bold shadow-md"
+                        disabled={!text || !url}
+                    >
+                        插入連結
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Helper: Robust Text Parser for Links ---
+const parseRawUrls = (text: string) => {
+    // Regex capturing group used to keep separators in split result
+    const urlRegex = /((?:https?:\/\/|www\.)[^\s\u4e00-\u9fa5]+)/gi;
+    
+    const parts = text.split(urlRegex);
+    
+    return parts.map((part, i) => {
+        if (part.match(/^(https?:\/\/|www\.)/i)) {
+            let href = part;
+            if (part.toLowerCase().startsWith('www.')) {
+                href = 'https://' + part;
+            }
+            
+            // Strip common trailing punctuation
+            const match = href.match(/[.,;!?)]+$/);
+            let suffix = '';
+            if (match) {
+                suffix = match[0];
+                href = href.substring(0, href.length - suffix.length);
+                part = part.substring(0, part.length - suffix.length);
+            }
+
+            return (
+                <React.Fragment key={`link-frag-${i}`}>
+                    <a 
+                        href={href} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-pizza-500 hover:text-pizza-600 hover:underline font-medium break-all cursor-pointer relative z-10"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {part}
+                    </a>
+                    {suffix}
+                </React.Fragment>
+            );
+        }
+        return part;
+    });
+};
+
+const parseText = (text: string) => {
+    if (!text) return '';
+
+    // Regex to match Markdown links [text](url)
+    const mdLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+    
+    const elements: React.ReactNode[] = [];
+    let lastIndex = 0;
+
+    let match;
+    while ((match = mdLinkRegex.exec(text)) !== null) {
+        // Process text before markdown link for raw URLs
+        if (match.index > lastIndex) {
+            const subText = text.substring(lastIndex, match.index);
+            elements.push(...parseRawUrls(subText));
+        }
+
+        // Push Markdown link
+        elements.push(
+            <a 
+                key={`md-${match.index}`} 
+                href={match[2]} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-pizza-500 hover:text-pizza-600 hover:underline font-bold mx-1 cursor-pointer relative z-10"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {match[1]}
+            </a>
+        );
+
+        lastIndex = mdLinkRegex.lastIndex;
+    }
+
+    // Process remaining text for raw URLs
+    if (lastIndex < text.length) {
+        elements.push(...parseRawUrls(text.substring(lastIndex)));
+    }
+
+    return elements;
+};
+
+// --- Block Renderer Component ---
 const BlockRenderer: React.FC<{
   block: SOPBlock;
   isEditing: boolean;
   onUpdate: (id: string, content: string) => void;
   onUpdateProps: (id: string, props: any) => void;
   onConfirmAction: (message: string, action: () => void) => void;
-}> = ({ block, isEditing, onUpdate, onUpdateProps, onConfirmAction }) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  indexContext?: number; // For numbered lists
+}> = ({ block, isEditing, onUpdate, onUpdateProps, onConfirmAction, indexContext }) => {
+  
+  const [uploading, setUploading] = useState(false);
 
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-    }
-  }, [block.content]);
+  const commonClasses = "w-full bg-transparent outline-none transition-all resize-none border-none p-0 m-0 focus:ring-0 overflow-hidden";
 
-  const commonClasses = "w-full bg-transparent outline-none transition-all resize-none";
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video' | 'pdf') => {
+      if (!e.target.files || e.target.files.length === 0) return;
+      const file = e.target.files[0];
+      setUploading(true);
+
+      try {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+          const filePath = `${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+              .from('documents')
+              .upload(filePath, file);
+
+          if (uploadError) throw uploadError;
+
+          const { data: { publicUrl } } = supabase.storage
+              .from('documents')
+              .getPublicUrl(filePath);
+
+          onUpdate(block.id, publicUrl);
+      } catch (error: any) {
+          alert('上傳失敗：' + error.message);
+      } finally {
+          setUploading(false);
+      }
+  };
 
   switch (block.type) {
     case 'heading-1':
       return isEditing ? (
-        <textarea ref={textareaRef} value={block.content} onChange={e => onUpdate(block.id, e.target.value)} className={`${commonClasses} text-4xl font-playfair font-bold text-stone-900 placeholder-stone-300 mt-6 mb-4`} placeholder="大標題..." rows={1} />
+        <textarea 
+            value={block.content} 
+            onChange={e => onUpdate(block.id, e.target.value)} 
+            className={`${commonClasses} text-4xl font-playfair font-bold text-stone-900 placeholder-stone-300 mt-6 mb-4`} 
+            placeholder="大標題..." 
+            rows={Math.max(1, block.content.split('\n').length)}
+        />
       ) : <h1 className="text-4xl font-playfair font-bold text-stone-900 mt-6 mb-4">{block.content}</h1>;
+    
     case 'heading-2':
       return isEditing ? (
-        <textarea ref={textareaRef} value={block.content} onChange={e => onUpdate(block.id, e.target.value)} className={`${commonClasses} text-2xl font-playfair font-bold text-stone-800 placeholder-stone-300 mt-4 mb-2 border-b border-stone-200 pb-2`} placeholder="中標題..." rows={1} />
+        <textarea 
+            value={block.content} 
+            onChange={e => onUpdate(block.id, e.target.value)} 
+            className={`${commonClasses} text-2xl font-playfair font-bold text-stone-800 placeholder-stone-300 mt-4 mb-2 border-b border-stone-200 pb-2`} 
+            placeholder="中標題..." 
+            rows={Math.max(1, block.content.split('\n').length)}
+        />
       ) : <h2 className="text-2xl font-playfair font-bold text-stone-800 mt-4 mb-2 border-b border-stone-200 pb-2">{block.content}</h2>;
+
     case 'heading-3':
       return isEditing ? (
-        <textarea ref={textareaRef} value={block.content} onChange={e => onUpdate(block.id, e.target.value)} className={`${commonClasses} text-xl font-bold text-stone-700 placeholder-stone-300 mt-3 mb-1`} placeholder="小標題..." rows={1} />
+        <textarea 
+            value={block.content} 
+            onChange={e => onUpdate(block.id, e.target.value)} 
+            className={`${commonClasses} text-xl font-bold text-stone-700 placeholder-stone-300 mt-3 mb-1`} 
+            placeholder="小標題..." 
+            rows={Math.max(1, block.content.split('\n').length)}
+        />
       ) : <h3 className="text-xl font-bold text-stone-700 mt-3 mb-1">{block.content}</h3>;
+
     case 'bullet-list':
       return (
         <div className="flex items-start gap-2 my-1">
           <span className="text-stone-400 text-xl leading-relaxed">•</span>
           {isEditing ? (
-            <textarea ref={textareaRef} value={block.content} onChange={e => onUpdate(block.id, e.target.value)} className={`${commonClasses} text-stone-700 leading-relaxed`} placeholder="清單項目..." rows={1} />
-          ) : <p className="text-stone-700 leading-relaxed">{block.content}</p>}
+            <textarea 
+                value={block.content} 
+                onChange={e => onUpdate(block.id, e.target.value)} 
+                className={`${commonClasses} text-stone-700 leading-relaxed`} 
+                placeholder="清單項目..." 
+                rows={Math.max(1, block.content.split('\n').length)}
+            />
+          ) : <p className="text-stone-700 leading-relaxed">{parseText(block.content)}</p>}
         </div>
       );
+
     case 'number-list':
         return (
           <div className="flex items-start gap-2 my-1">
-            <span className="text-stone-400 font-mono mt-0.5">1.</span>
+            <span className="text-stone-400 font-mono mt-0.5 font-bold">{indexContext}.</span>
             {isEditing ? (
-              <textarea ref={textareaRef} value={block.content} onChange={e => onUpdate(block.id, e.target.value)} className={`${commonClasses} text-stone-700 leading-relaxed`} placeholder="編號清單..." rows={1} />
-            ) : <p className="text-stone-700 leading-relaxed">{block.content}</p>}
+              <textarea 
+                value={block.content} 
+                onChange={e => onUpdate(block.id, e.target.value)} 
+                className={`${commonClasses} text-stone-700 leading-relaxed`} 
+                placeholder="編號清單..." 
+                rows={Math.max(1, block.content.split('\n').length)}
+              />
+            ) : <p className="text-stone-700 leading-relaxed">{parseText(block.content)}</p>}
           </div>
         );
+
     case 'callout':
         return (
             <div className={`p-4 rounded-xl border my-4 flex gap-3 ${block.props?.color === 'red' ? 'bg-red-50 border-red-100 text-red-800' : block.props?.color === 'blue' ? 'bg-sky-50 border-sky-100 text-sky-800' : block.props?.color === 'green' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-amber-50 border-amber-100 text-amber-800'}`}>
                 <div className="mt-0.5">💡</div>
                 {isEditing ? (
                     <div className="flex-grow">
-                        <textarea ref={textareaRef} value={block.content} onChange={e => onUpdate(block.id, e.target.value)} className={`${commonClasses} bg-transparent font-medium`} placeholder="重點提示..." rows={1} />
+                        <textarea 
+                            value={block.content} 
+                            onChange={e => onUpdate(block.id, e.target.value)} 
+                            className={`${commonClasses} bg-transparent font-medium`} 
+                            placeholder="重點提示..." 
+                            rows={Math.max(1, block.content.split('\n').length)}
+                        />
                         <div className="flex gap-2 mt-2">
                             {['amber', 'red', 'blue', 'green'].map(c => (
                                 <button key={c} type="button" onClick={() => onUpdateProps(block.id, { color: c })} className={`w-4 h-4 rounded-full ${c === 'amber' ? 'bg-amber-400' : c === 'red' ? 'bg-red-400' : c === 'blue' ? 'bg-sky-400' : 'bg-emerald-400'}`}></button>
                             ))}
                         </div>
                     </div>
-                ) : <p className="font-medium whitespace-pre-wrap">{block.content}</p>}
+                ) : <p className="font-medium whitespace-pre-wrap">{parseText(block.content)}</p>}
             </div>
         );
+
+    case 'toggle':
+        return (
+            <div className="my-4 border border-stone-200 rounded-xl overflow-hidden bg-white">
+                {isEditing ? (
+                    <div className="p-4 bg-stone-50">
+                        <input 
+                            type="text" 
+                            value={block.content} 
+                            onChange={e => onUpdate(block.id, e.target.value)} 
+                            className="w-full bg-transparent font-bold text-stone-700 placeholder-stone-400 outline-none mb-2" 
+                            placeholder="折疊標題 (例如：點擊查看更多)..."
+                        />
+                        <div className="h-px bg-stone-200 mb-2"></div>
+                        <textarea 
+                            value={block.props?.details || ''} 
+                            onChange={e => onUpdateProps(block.id, { details: e.target.value })} 
+                            className="w-full bg-transparent text-stone-600 text-sm leading-relaxed outline-none resize-none" 
+                            placeholder="隱藏的內容..."
+                            rows={Math.max(1, (block.props?.details || '').split('\n').length)}
+                        />
+                    </div>
+                ) : (
+                    <details className="group">
+                        <summary className="flex items-center justify-between p-4 cursor-pointer font-bold text-stone-700 hover:bg-stone-50 transition-colors select-none list-none">
+                            <span>{block.content || '點擊展開'}</span>
+                            <svg className="w-5 h-5 text-stone-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </summary>
+                        <div className="p-4 pt-0 mt-4 text-stone-600 text-sm leading-relaxed border-t border-stone-100">
+                            {parseText(block.props?.details || '')}
+                        </div>
+                    </details>
+                )}
+            </div>
+        );
+
     case 'image':
         return (
             <div className="my-6">
@@ -90,14 +340,32 @@ const BlockRenderer: React.FC<{
                     <div className="relative group">
                         <img src={block.content} alt="Content" className="rounded-xl shadow-sm max-w-full h-auto max-h-[500px] object-contain mx-auto border border-stone-100" />
                         {isEditing && (
-                            <input type="text" value={block.content} onChange={e => onUpdate(block.id, e.target.value)} className="absolute bottom-2 left-2 right-2 glass-input text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity" placeholder="圖片網址..." />
+                            <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                <input 
+                                    type="text" 
+                                    value={block.content} 
+                                    onChange={e => onUpdate(block.id, e.target.value)} 
+                                    className="glass-input text-xs px-2 py-1 flex-grow" 
+                                    placeholder="圖片網址..."
+                                />
+                                <button onClick={() => onUpdate(block.id, '')} className="bg-white p-1 rounded text-red-500 hover:bg-red-50 shadow-sm"><TrashIcon className="w-4 h-4"/></button>
+                            </div>
                         )}
                     </div>
                 ) : (
                     isEditing ? (
-                        <div className="border-2 border-dashed border-stone-300 rounded-xl p-8 text-center bg-stone-50">
-                            <p className="text-stone-400 text-sm mb-2">請輸入圖片網址</p>
-                            <input type="text" value={block.content} onChange={e => onUpdate(block.id, e.target.value)} className="glass-input w-full px-3 py-2 text-sm" placeholder="https://..." />
+                        <div className="border-2 border-dashed border-stone-300 rounded-xl p-8 text-center bg-stone-50 flex flex-col items-center">
+                            {uploading ? <div className="text-pizza-500 font-bold animate-pulse">上傳中...</div> : (
+                                <>
+                                    <ImageIcon className="w-8 h-8 text-stone-400 mb-2"/>
+                                    <label className="cursor-pointer px-4 py-2 bg-white border border-stone-200 rounded-lg hover:bg-stone-100 text-xs font-bold text-stone-600 mb-2 shadow-sm">
+                                        上傳圖片
+                                        <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'image')} className="hidden" />
+                                    </label>
+                                    <span className="text-xs text-stone-400 mb-2">- 或 -</span>
+                                    <input type="text" value={block.content} onChange={e => onUpdate(block.id, e.target.value)} className="glass-input w-3/4 px-3 py-2 text-sm text-center" placeholder="貼上圖片網址..." />
+                                </>
+                            )}
                         </div>
                     ) : null
                 )}
@@ -114,30 +382,234 @@ const BlockRenderer: React.FC<{
             <div className="my-6 aspect-video bg-stone-100 rounded-xl overflow-hidden relative group">
                 {block.content ? (
                     <>
-                        <iframe src={getEmbedUrl(block.content)} title="Video" className="w-full h-full" allowFullScreen frameBorder="0"></iframe>
+                        {block.content.includes('supabase') ? (
+                             <video src={block.content} controls className="w-full h-full rounded-xl"></video>
+                        ) : (
+                             <iframe src={getEmbedUrl(block.content)} title="Video" className="w-full h-full" allowFullScreen frameBorder="0"></iframe>
+                        )}
                         {isEditing && (
-                             <input type="text" value={block.content} onChange={e => onUpdate(block.id, e.target.value)} className="absolute bottom-2 left-2 right-2 glass-input text-xs px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity" placeholder="影片網址..." />
+                             <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                <input 
+                                    type="text" 
+                                    value={block.content} 
+                                    onChange={e => onUpdate(block.id, e.target.value)} 
+                                    className="glass-input text-xs px-2 py-1 flex-grow" 
+                                    placeholder="影片網址..."
+                                />
+                                <button onClick={() => onUpdate(block.id, '')} className="bg-white p-1 rounded text-red-500 hover:bg-red-50 shadow-sm"><TrashIcon className="w-4 h-4"/></button>
+                            </div>
                         )}
                     </>
                 ) : (
                     isEditing ? (
-                        <div className="flex items-center justify-center h-full border-2 border-dashed border-stone-300 rounded-xl p-4">
-                             <input type="text" value={block.content} onChange={e => onUpdate(block.id, e.target.value)} className="glass-input w-3/4 px-3 py-2 text-sm" placeholder="輸入 YouTube 影片網址..." />
+                        <div className="flex flex-col items-center justify-center h-full border-2 border-dashed border-stone-300 rounded-xl p-4">
+                             {uploading ? <div className="text-pizza-500 font-bold animate-pulse">上傳中...</div> : (
+                                <>
+                                    <VideoIcon className="w-8 h-8 text-stone-400 mb-2"/>
+                                    <label className="cursor-pointer px-4 py-2 bg-white border border-stone-200 rounded-lg hover:bg-stone-100 text-xs font-bold text-stone-600 mb-2 shadow-sm">
+                                        上傳影片
+                                        <input type="file" accept="video/*" onChange={(e) => handleFileUpload(e, 'video')} className="hidden" />
+                                    </label>
+                                    <span className="text-xs text-stone-400 mb-2">- 或 -</span>
+                                    <input type="text" value={block.content} onChange={e => onUpdate(block.id, e.target.value)} className="glass-input w-3/4 px-3 py-2 text-sm text-center" placeholder="貼上 YouTube 網址..." />
+                                </>
+                             )}
                         </div>
                     ) : null
                 )}
             </div>
         );
+    
+    case 'pdf':
+        return (
+            <div className="my-6 w-full bg-stone-50 rounded-xl overflow-hidden border border-stone-200">
+                {block.content ? (
+                    <div className="w-full h-[600px]">
+                        <object data={block.content} type="application/pdf" className="w-full h-full">
+                            <div className="flex flex-col items-center justify-center h-full text-stone-500">
+                                <p className="mb-2">瀏覽器無法直接預覽此 PDF</p>
+                                <a href={block.content} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-pizza-500 text-white rounded-lg text-sm font-bold">下載檢視</a>
+                            </div>
+                        </object>
+                    </div>
+                ) : (
+                    isEditing ? (
+                        <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-stone-300 rounded-xl m-4 bg-white">
+                            {uploading ? (
+                                <div className="text-pizza-500 font-bold animate-pulse">上傳中...</div>
+                            ) : (
+                                <>
+                                    <DocumentIcon />
+                                    <label className="mt-2 px-4 py-2 bg-stone-100 hover:bg-stone-200 rounded-lg text-xs font-bold cursor-pointer text-stone-600 transition-colors">
+                                        上傳 PDF 檔案
+                                        <input type="file" accept="application/pdf" onChange={(e) => handleFileUpload(e, 'pdf')} className="hidden" />
+                                    </label>
+                                    <span className="text-[10px] text-stone-400 mt-2">最大 5MB</span>
+                                </>
+                            )}
+                        </div>
+                    ) : null
+                )}
+                {isEditing && block.content && (
+                    <div className="p-2 bg-white border-t border-stone-200 flex justify-end">
+                        <button onClick={() => onUpdate(block.id, '')} className="text-red-500 text-xs font-bold px-3 py-1 hover:bg-red-50 rounded">移除 PDF</button>
+                    </div>
+                )}
+            </div>
+        );
+
     case 'divider':
         return <hr className="my-8 border-t-2 border-stone-100" />;
+    
+    case 'table':
+        let tableData: string[][] = [];
+        try {
+            tableData = JSON.parse(block.content);
+            if (!Array.isArray(tableData)) tableData = [['標題 1', '標題 2'], ['內容 1', '內容 2']];
+        } catch {
+            tableData = [['標題 1', '標題 2'], ['內容 1', '內容 2']];
+        }
+
+        const updateTableData = (newData: string[][]) => {
+             onUpdate(block.id, JSON.stringify(newData));
+        };
+
+        const handleCellChange = (rowIndex: number, colIndex: number, value: string) => {
+            const newData = [...tableData];
+            newData[rowIndex] = [...newData[rowIndex]];
+            newData[rowIndex][colIndex] = value;
+            updateTableData(newData);
+        };
+
+        const addRow = () => {
+            const colCount = tableData[0]?.length || 1;
+            const newRow = new Array(colCount).fill('');
+            updateTableData([...tableData, newRow]);
+        };
+
+        const addColumn = () => {
+            const newData = tableData.map(row => [...row, '']);
+            updateTableData(newData);
+        };
+
+        const deleteRow = (rowIndex: number, e: React.MouseEvent) => {
+             e.preventDefault();
+             e.stopPropagation();
+             if (tableData.length <= 1) return;
+             
+             onConfirmAction('確定要刪除此列嗎？', () => {
+                 const newData = tableData.filter((_, i) => i !== rowIndex);
+                 updateTableData(newData);
+             });
+        };
+
+        const deleteColumn = (colIndex: number, e: React.MouseEvent) => {
+             e.preventDefault();
+             e.stopPropagation();
+             if (tableData[0].length <= 1) return;
+             
+             onConfirmAction('確定要刪除此欄嗎？', () => {
+                 const newData = tableData.map(row => row.filter((_, i) => i !== colIndex));
+                 updateTableData(newData);
+             });
+        };
+
+        return (
+            <div className="my-6 w-full overflow-x-auto pb-12 pl-4 pt-8 pr-2 relative z-10 custom-scrollbar">
+                <div className="inline-block min-w-full align-middle">
+                     <table className="min-w-full border-collapse border border-stone-200 shadow-sm bg-white rounded-lg table-fixed">
+                         <thead>
+                             <tr>
+                                 {isEditing && <th className="p-2 bg-stone-50 w-12 border border-stone-200"></th>}
+                                 {tableData[0].map((_, colIndex) => (
+                                     <th key={colIndex} className="relative p-2 bg-stone-50 border border-stone-200 min-w-[120px] group/col">
+                                         {isEditing && (
+                                             <div className="absolute -top-8 left-0 right-0 flex justify-center opacity-0 group-hover/col:opacity-100 transition-opacity z-20">
+                                                 <button 
+                                                    type="button"
+                                                    onClick={(e) => deleteColumn(colIndex, e)} 
+                                                    className="bg-white text-red-500 border border-stone-200 rounded-full p-1.5 hover:bg-red-50 shadow-md cursor-pointer"
+                                                    title="刪除此欄"
+                                                 >
+                                                     <svg className="w-3 h-3 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                 </button>
+                                             </div>
+                                         )}
+                                     </th>
+                                 ))}
+                                 {isEditing && (
+                                     <th className="p-2 bg-stone-50 border border-stone-200 w-16 align-middle text-center bg-pizza-50/50 hover:bg-pizza-50 transition-colors cursor-pointer" onClick={addColumn} title="新增欄">
+                                         <div className="flex flex-col items-center justify-center h-full text-pizza-500">
+                                             <PlusIcon className="w-6 h-6"/>
+                                         </div>
+                                     </th>
+                                 )}
+                             </tr>
+                         </thead>
+                         <tbody className="bg-white">
+                             {tableData.map((row, rowIndex) => (
+                                 <tr key={rowIndex}>
+                                     {isEditing && (
+                                         <td className="p-2 bg-stone-50 border border-stone-200 text-center group/row relative w-12">
+                                            <button 
+                                                type="button"
+                                                onClick={(e) => deleteRow(rowIndex, e)} 
+                                                className="absolute top-1/2 -left-3 -translate-y-1/2 bg-white text-red-500 border border-stone-200 rounded-full p-1.5 opacity-0 group-hover/row:opacity-100 transition-opacity hover:bg-red-50 z-20 shadow-md cursor-pointer"
+                                                title="刪除此列"
+                                            >
+                                                <svg className="w-3 h-3 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                            </button>
+                                         </td>
+                                     )}
+                                     {row.map((cell, colIndex) => (
+                                         <td key={colIndex} className="border border-stone-200 p-0 relative">
+                                             {isEditing ? (
+                                                 <textarea
+                                                     value={cell} 
+                                                     onChange={(e) => handleCellChange(rowIndex, colIndex, e.target.value)}
+                                                     className="w-full h-full min-h-[48px] p-3 bg-transparent outline-none focus:bg-pizza-50/20 focus:ring-2 focus:ring-pizza-500/20 transition-all text-sm text-stone-700 resize-none block"
+                                                     placeholder="..."
+                                                     rows={Math.max(1, cell.split('\n').length)}
+                                                 />
+                                             ) : (
+                                                 <div className="p-3 text-sm text-stone-700 whitespace-pre-wrap break-words">{parseText(cell)}</div>
+                                             )}
+                                         </td>
+                                     ))}
+                                     {isEditing && <td className="bg-stone-50 border border-stone-200"></td>}
+                                 </tr>
+                             ))}
+                         </tbody>
+                     </table>
+                    {isEditing && (
+                         <div className="flex justify-center mt-2">
+                             <button 
+                                type="button" 
+                                onClick={addRow} 
+                                className="flex items-center justify-center w-8 h-8 bg-white border border-stone-300 rounded-full hover:bg-pizza-50 hover:text-pizza-500 hover:border-pizza-300 transition-all shadow-sm"
+                                title="新增列"
+                             >
+                                 <PlusIcon className="w-5 h-5" />
+                             </button>
+                         </div>
+                    )}
+                </div>
+            </div>
+        );
+
     default:
       return isEditing ? (
-        <textarea ref={textareaRef} value={block.content} onChange={e => onUpdate(block.id, e.target.value)} className={`${commonClasses} text-stone-600 leading-relaxed min-h-[1.5em]`} placeholder="輸入內容..." rows={1} />
-      ) : <p className="text-stone-600 leading-relaxed whitespace-pre-wrap min-h-[1.5em]">{block.content || <br/>}</p>;
+        <textarea 
+            value={block.content} 
+            onChange={e => onUpdate(block.id, e.target.value)} 
+            className={`${commonClasses} text-stone-600 leading-relaxed min-h-[1.5em]`} 
+            placeholder="輸入內容..." 
+            rows={Math.max(1, block.content.split('\n').length)}
+        />
+      ) : <p className="text-stone-600 leading-relaxed whitespace-pre-wrap min-h-[1.5em]">{parseText(block.content) || <br/>}</p>;
   }
 };
 
-// Calculate time taken to read
 const calculateTimeTaken = (start: string, end: string) => {
     const s = new Date(start).getTime();
     const e = new Date(end).getTime();
@@ -168,39 +640,33 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [confirmState, setConfirmState] = useState<{ message: string; onConfirm: () => void } | null>(null);
   
-  // Combined List
   const [targetPersonnelList, setTargetPersonnelList] = useState<Array<Personnel & { readRecord?: AnnouncementRead }>>([]);
-  
-  // Settings for Admin
   const [targetRoles, setTargetRoles] = useState<string[]>([]);
   const [targetStations, setTargetStations] = useState<string[]>([]);
-  
-  // Dynamic Tags from DB
   const [contentTags, setContentTags] = useState<TagData[]>([]);
   const [roleTags, setRoleTags] = useState<TagData[]>([]);
   const [stationTags, setStationTags] = useState<TagData[]>([]);
-  
-  // Cycle Logic
   const [selectedWeekDays, setSelectedWeekDays] = useState<number[]>([]);
   const [category, setCategory] = useState<string>('');
   const [dates, setDates] = useState<{start: string, end: string}>({start: '', end: ''});
   const [isPermanent, setIsPermanent] = useState(false);
-
-  // Calendar Modal State
   const [isStartCalendarOpen, setIsStartCalendarOpen] = useState(false);
   const [isEndCalendarOpen, setIsEndCalendarOpen] = useState(false);
   const [calendarViewDate, setCalendarViewDate] = useState(new Date());
-
-  const canEdit = userRole === 'admin';
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const hasReadRef = useRef(false);
   
-  // Ref for closing calendar on outside click
+  // Preview Mode
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  // Link Modal
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+
+  const canManage = userRole === 'admin';
+  const canEdit = canManage && !isPreviewMode;
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const prevBlocksLength = useRef(0);
+  const hasReadRef = useRef(false);
   const calendarRef = useRef<HTMLDivElement>(null);
   
-  useEffect(() => {
-    fetchData();
-  }, [id, navigate]);
+  useEffect(() => { fetchData(); }, [id, navigate]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -209,12 +675,8 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
             setIsEndCalendarOpen(false);
         }
     };
-    if (isStartCalendarOpen || isEndCalendarOpen) {
-        document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-    };
+    if (isStartCalendarOpen || isEndCalendarOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isStartCalendarOpen, isEndCalendarOpen]);
 
   const fetchData = async () => {
@@ -222,33 +684,25 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
       setLoading(true);
       
       const { data, error } = await supabase.from('announcements').select('*').eq('id', id).single();
-      if (error) {
-        navigate('/announcement-list');
-        return;
-      }
+      if (error) { navigate('/announcement-list'); return; }
 
       const anno = data as any;
       setAnnouncement(anno);
       setBlocks(anno.content || []);
+      prevBlocksLength.current = (anno.content || []).length;
       setTargetRoles(anno.target_roles || []);
       setTargetStations(anno.target_stations || []);
       
-      // Parse Cycle Type
       const rawCycleType = anno.cycle_type || 'daily';
       if (rawCycleType.startsWith('weekly:')) {
           const daysStr = rawCycleType.split(':')[1];
-          if (daysStr) {
-              setSelectedWeekDays(daysStr.split(',').map(Number));
-          }
-      } else {
-          setSelectedWeekDays([]);
-      }
+          if (daysStr) setSelectedWeekDays(daysStr.split(',').map(Number));
+      } else setSelectedWeekDays([]);
 
       setCategory(anno.category || '');
       setDates({ start: anno.start_date || '', end: anno.end_date || '' });
       setIsPermanent(!anno.end_date);
 
-      // Fetch Tags
       const { data: tagsData } = await supabase.from('tags').select('*').in('category', ['anno_category', 'job', 'station']);
       if (tagsData) {
           setContentTags(tagsData.filter((t: any) => t.category === 'anno_category'));
@@ -257,20 +711,13 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
       }
 
       if (userRole === 'admin') {
-          // Fetch reads
-          const { data: reads } = await supabase
-            .from('announcement_reads')
-            .select('*, personnel:personnel_id(name)')
-            .eq('announcement_id', id);
-            
-          // Fetch all active personnel
-          const { data: allPersonnel } = await supabase.from('personnel').select('*').eq('status', '在職');
+          const { data: reads } = await supabase.from('announcement_reads').select('*, personnel:personnel_id(name)').eq('announcement_id', id);
+          // Filter out admins from the list
+          const { data: allPersonnel } = await supabase.from('personnel').select('*').eq('status', '在職').neq('role', 'admin');
           
           if (allPersonnel) {
-              const readMap = new Map(reads?.map((r: any) => [r.personnel_id, r]) || []);
-              
+              const readMap = new Map<string, AnnouncementRead>(reads?.map((r: any) => [r.personnel_id, r as AnnouncementRead]) || []);
               const relevantPersonnel = (allPersonnel as Personnel[]).filter(p => {
-                  // Check targets
                   const roleMatch = anno.target_roles?.some((r: string) => {
                       const rTrimmed = r.trim();
                       if (rTrimmed === '一般員工') return true;
@@ -286,160 +733,103 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
                       return false;
                   });
                   return roleMatch && stationMatch;
-              }).map(p => ({
-                  ...p,
-                  readRecord: readMap.get(p.id)
-              }));
+              }).map(p => ({ ...p, readRecord: readMap.get(p.id) }));
 
-              // Sort: Unread first, then Read
               relevantPersonnel.sort((a, b) => {
                   const aRead = !!a.readRecord;
                   const bRead = !!b.readRecord;
                   if (aRead === bRead) return a.name.localeCompare(b.name);
                   return aRead ? 1 : -1;
               });
-
               setTargetPersonnelList(relevantPersonnel);
           }
-
       } else {
-          // Check if already read by current user
-          const { data: myRead } = await supabase
-            .from('announcement_reads')
-            .select('*')
-            .eq('announcement_id', id)
-            .eq('personnel_id', userId)
-            .single();
+          const { data: myRead } = await supabase.from('announcement_reads').select('*').eq('announcement_id', id).eq('personnel_id', userId).single();
           if (myRead) hasReadRef.current = true;
       }
       setLoading(false);
   };
 
-  // Mark as read logic for non-admins
   useEffect(() => {
     if (canEdit || hasReadRef.current || !id) return;
-
     const observer = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && !hasReadRef.current) {
-            markAsRead();
-        }
+        if (entries[0].isIntersecting && !hasReadRef.current) markAsRead();
     }, { threshold: 1.0 });
-
     if (bottomRef.current) observer.observe(bottomRef.current);
-
     return () => observer.disconnect();
   }, [loading, canEdit, id]);
+
+  // Auto-scroll to bottom when a new block is added
+  useEffect(() => {
+      if (blocks.length > prevBlocksLength.current) {
+          bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      prevBlocksLength.current = blocks.length;
+  }, [blocks.length]);
 
   const markAsRead = async () => {
       hasReadRef.current = true;
       const nowStr = new Date().toISOString();
-      
-      // Check for existing read to handle cycle reset
-      const { data: existing } = await supabase
-        .from('announcement_reads')
-        .select('*')
-        .eq('announcement_id', id)
-        .eq('personnel_id', userId)
-        .single();
+      const { data: existing } = await supabase.from('announcement_reads').select('*').eq('announcement_id', id).eq('personnel_id', userId).single();
 
       let shouldResetConfirmation = false;
       if (existing) {
           const readDate = new Date(existing.read_at);
           const today = new Date();
-          if (readDate.toDateString() !== today.toDateString()) {
-              shouldResetConfirmation = true;
-          }
-      } else {
-          shouldResetConfirmation = true; 
-      }
+          if (readDate.toDateString() !== today.toDateString()) shouldResetConfirmation = true;
+      } else shouldResetConfirmation = true; 
 
-      const payload: any = {
-          announcement_id: id,
-          personnel_id: userId,
-          read_at: nowStr
-      };
-      
+      const payload: any = { announcement_id: id, personnel_id: userId, read_at: nowStr };
       if (shouldResetConfirmation) {
           payload.is_confirmed = false;
           payload.confirmed_by = null;
           payload.confirmed_at = null;
       }
-
       await supabase.from('announcement_reads').upsert(payload, { onConflict: 'announcement_id,personnel_id' });
   };
 
   const handleConfirmRead = async (personnelId: string, isConfirmed: boolean) => {
       const now = new Date().toISOString();
-      
-      // Optimistic Update
       setTargetPersonnelList(prev => prev.map(p => {
           if (p.id === personnelId && p.readRecord) {
-              return {
-                  ...p,
-                  readRecord: {
-                      ...p.readRecord,
-                      is_confirmed: isConfirmed,
-                      confirmed_by: isConfirmed ? userName : undefined,
-                      confirmed_at: isConfirmed ? now : undefined
-                  }
-              };
+              return { ...p, readRecord: { ...p.readRecord, is_confirmed: isConfirmed, confirmed_by: isConfirmed ? userName : undefined, confirmed_at: isConfirmed ? now : undefined } };
           }
           return p;
       }));
-
-      const { error } = await supabase.from('announcement_reads').update({
-          is_confirmed: isConfirmed,
-          confirmed_by: isConfirmed ? userName : null,
-          confirmed_at: isConfirmed ? now : null
-      }).match({ announcement_id: id, personnel_id: personnelId });
-
+      const { error } = await supabase.from('announcement_reads').update({ is_confirmed: isConfirmed, confirmed_by: isConfirmed ? userName : null, confirmed_at: isConfirmed ? now : null }).match({ announcement_id: id, personnel_id: personnelId });
       if (error) alert('更新失敗');
   };
 
   const handleSave = async () => {
     if (!id) return;
-    if (!announcement?.title?.trim()) {
-        alert('請輸入公告標題');
-        return;
-    }
-
+    if (!announcement?.title?.trim()) { alert('請輸入公告標題'); return; }
     let finalCycleType = 'daily';
-    if (selectedWeekDays.length > 0) {
-        finalCycleType = `weekly:${selectedWeekDays.join(',')}`;
-    }
+    if (selectedWeekDays.length > 0) finalCycleType = `weekly:${selectedWeekDays.join(',')}`;
 
     setSaving(true);
-    const { error } = await supabase
-        .from('announcements')
-        .update({ 
-            content: blocks,
-            target_roles: targetRoles,
-            target_stations: targetStations,
-            cycle_type: finalCycleType,
-            category: category,
-            start_date: dates.start,
-            end_date: isPermanent ? null : (dates.end || null),
-            title: announcement.title
-        })
-        .eq('id', id);
+    const { error } = await supabase.from('announcements').update({ 
+        content: blocks, target_roles: targetRoles, target_stations: targetStations, cycle_type: finalCycleType, category: category, start_date: dates.start, end_date: isPermanent ? null : (dates.end || null), title: announcement.title
+    }).eq('id', id);
     
-    if (!error) {
-        setLastSaved(new Date());
-        alert('儲存成功！');
-    } else {
-        if (error.code === 'PGRST204') {
-             alert('儲存失敗：資料庫欄位不符。請聯繫開發人員或在後台更新資料庫 Schema (補上 cycle_type 欄位)。');
-        } else {
-             alert('儲存失敗：' + error.message);
-        }
-    }
+    if (!error) { setLastSaved(new Date()); alert('儲存成功！'); } 
+    else alert('儲存失敗：' + error.message);
     setSaving(false);
   };
 
-  // --- Block Ops ---
   const addBlock = (type: BlockType) => {
-    setBlocks([...blocks, { id: crypto.randomUUID(), type, content: '', props: type === 'callout' ? { color: 'amber' } : {} }]);
+    setBlocks([...blocks, { id: crypto.randomUUID(), type, content: type === 'table' ? JSON.stringify([['標題 1', '標題 2'], ['內容 1', '內容 2']]) : '', props: type === 'callout' ? { color: 'amber' } : {} }]);
   };
+  
+  const handleLinkConfirm = (text: string, url: string) => {
+      const newBlock: SOPBlock = {
+          id: crypto.randomUUID(),
+          type: 'text',
+          content: `[${text}](${url})`,
+          props: {}
+      };
+      setBlocks([...blocks, newBlock]);
+  };
+
   const updateBlock = (bid: string, content: string) => setBlocks(prev => prev.map(b => b.id === bid ? { ...b, content } : b));
   const updateBlockProps = (bid: string, props: any) => setBlocks(prev => prev.map(b => b.id === bid ? { ...b, props: { ...b.props, ...props } } : b));
   const deleteBlock = (bid: string, e?: React.MouseEvent) => {
@@ -452,44 +842,40 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
       else if (dir === 'down' && index < newBlocks.length -1) [newBlocks[index], newBlocks[index+1]] = [newBlocks[index+1], newBlocks[index]];
       setBlocks(newBlocks);
   };
-
   const toggleWeekDay = (day: number) => {
       if (selectedWeekDays.includes(day)) setSelectedWeekDays(prev => prev.filter(d => d !== day));
       else setSelectedWeekDays(prev => [...prev, day]);
   };
-
   const handleDateSelect = (dateStr: string) => {
-      if (isStartCalendarOpen) {
-          setDates(prev => ({ ...prev, start: dateStr }));
-          setIsStartCalendarOpen(false);
-      } else if (isEndCalendarOpen) {
-          setDates(prev => ({ ...prev, end: dateStr }));
-          setIsEndCalendarOpen(false);
-      }
+      if (isStartCalendarOpen) { setDates(prev => ({ ...prev, start: dateStr })); setIsStartCalendarOpen(false); }
+      else if (isEndCalendarOpen) { setDates(prev => ({ ...prev, end: dateStr })); setIsEndCalendarOpen(false); }
   };
-
   const openCalendar = (type: 'start' | 'end') => {
       if (type === 'end' && isPermanent) return;
       const initialDateStr = type === 'start' ? dates.start : dates.end;
       const initialDate = initialDateStr ? new Date(initialDateStr) : new Date();
       if (isNaN(initialDate.getTime())) setCalendarViewDate(new Date());
       else setCalendarViewDate(initialDate);
-
       if (type === 'start') { setIsStartCalendarOpen(true); setIsEndCalendarOpen(false); } 
       else { setIsEndCalendarOpen(true); setIsStartCalendarOpen(false); }
   };
 
-  const weekDaysUI = [
-      { label: '一', val: 1 }, { label: '二', val: 2 }, { label: '三', val: 3 },
-      { label: '四', val: 4 }, { label: '五', val: 5 }, { label: '六', val: 6 }, { label: '日', val: 0 },
-  ];
+  const weekDaysUI = [{ label: '一', val: 1 }, { label: '二', val: 2 }, { label: '三', val: 3 }, { label: '四', val: 4 }, { label: '五', val: 5 }, { label: '六', val: 6 }, { label: '日', val: 0 }];
 
   if (loading) return <div className="min-h-screen flex justify-center items-center">載入中...</div>;
   if (!announcement) return null;
 
+  // Smart list numbering
+  let listIndex = 1;
+
   return (
     <div className="container mx-auto p-6 sm:p-8 lg:p-12 pb-32 max-w-4xl relative">
-        {/* Modal */}
+        <LinkInputModal 
+            isOpen={linkModalOpen} 
+            onClose={() => setLinkModalOpen(false)} 
+            onConfirm={handleLinkConfirm} 
+        />
+
         {confirmState && (
             <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
                 <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
@@ -502,220 +888,150 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
             </div>
         )}
 
-        <div className="mb-8">
-            <Link to={userRole === 'admin' ? "/announcement-list" : "/"} className="text-xs font-bold text-stone-400 hover:text-pizza-500 uppercase tracking-widest mb-4 block">← 返回列表</Link>
-            
-            {canEdit ? (
-                <div className="glass-panel p-8 rounded-3xl mb-8 bg-white border border-stone-200 shadow-sm">
-                    {/* Title */}
-                    <input 
-                        value={announcement.title} 
-                        onChange={e => setAnnouncement({...announcement, title: e.target.value})}
-                        className="text-3xl md:text-4xl font-playfair font-bold text-stone-900 w-full bg-transparent outline-none mb-8 placeholder-stone-300 border-b border-transparent focus:border-stone-200 pb-2 transition-all"
-                        placeholder="公告標題"
-                    />
+        {/* Floating Toolbar (Right Side) */}
+        {canEdit && (
+            <div className="fixed right-24 top-24 z-50 flex flex-col gap-2 bg-white/90 backdrop-blur p-3 rounded-2xl shadow-2xl border border-stone-200 animate-fade-in">
+                <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1 text-center">工具</p>
+                <Tooltip text="一般文字"><button onClick={() => addBlock('text')} className="p-2.5 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all text-stone-500"><TypeIcon/></button></Tooltip>
+                <Tooltip text="連結"><button onClick={() => setLinkModalOpen(true)} className="p-2.5 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all text-stone-500"><LinkIcon/></button></Tooltip>
+                <Tooltip text="圖片"><button onClick={() => addBlock('image')} className="p-2.5 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all text-stone-500"><ImageIcon/></button></Tooltip>
+                <Tooltip text="影片"><button onClick={() => addBlock('video')} className="p-2.5 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all text-stone-500"><VideoIcon/></button></Tooltip>
+                <Tooltip text="表格"><button onClick={() => addBlock('table')} className="p-2.5 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all text-stone-500"><TableIcon/></button></Tooltip>
+                <div className="h-px bg-stone-200 my-1 w-full"></div>
+                <Tooltip text="大標題"><button onClick={() => addBlock('heading-1')} className="px-2 py-2 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all font-playfair font-bold text-sm text-stone-600">H1</button></Tooltip>
+                <Tooltip text="中標題"><button onClick={() => addBlock('heading-2')} className="px-2 py-2 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all font-playfair font-bold text-xs text-stone-600">H2</button></Tooltip>
+                <div className="h-px bg-stone-200 my-1 w-full"></div>
+                <Tooltip text="提示框"><button onClick={() => addBlock('callout')} className="px-2 py-2 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all font-bold text-xs text-stone-600">💡</button></Tooltip>
+                <Tooltip text="折疊"><button onClick={() => addBlock('toggle')} className="p-2.5 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all text-stone-500"><ToggleIcon/></button></Tooltip>
+                <Tooltip text="清單"><button onClick={() => addBlock('bullet-list')} className="px-2 py-2 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all font-bold text-xs text-stone-600">•</button></Tooltip>
+                <Tooltip text="編號"><button onClick={() => addBlock('number-list')} className="px-2 py-2 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all font-bold text-xs text-stone-600">1.</button></Tooltip>
+                <Tooltip text="分隔線"><button onClick={() => addBlock('divider')} className="px-2 py-2 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all font-bold text-stone-400">—</button></Tooltip>
+            </div>
+        )}
 
-                    <div className="space-y-6">
-                        {/* 1. Category (Content) - Tags */}
-                        <div>
-                            <label className="block text-xs font-bold uppercase text-stone-500 mb-2 tracking-widest">內容</label>
-                            <div className="flex flex-wrap gap-2">
-                                {contentTags.map(tag => (
-                                    <button
-                                        key={tag.id}
-                                        onClick={() => setCategory(tag.value)}
-                                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
-                                            category === tag.value
-                                                ? 'bg-pizza-500 text-white border-pizza-500 shadow-md'
-                                                : 'bg-white text-stone-500 border-stone-200 hover:border-pizza-300'
-                                        }`}
-                                    >
-                                        {tag.value}
-                                    </button>
-                                ))}
-                                {contentTags.length === 0 && <p className="text-xs text-stone-400">尚無內容標籤，請至公告管理頁面新增。</p>}
-                            </div>
-                        </div>
-
-                        {/* 2. Date Range Block */}
-                        <div className="relative" ref={calendarRef}>
-                            <div className="flex justify-between items-end mb-2">
-                                <label className="block text-xs font-bold uppercase text-stone-500 tracking-widest">公告有效期間</label>
-                                <div className="flex items-center gap-2">
-                                    <input 
-                                        type="checkbox" 
-                                        id="permanentCheck"
-                                        checked={isPermanent}
-                                        onChange={(e) => setIsPermanent(e.target.checked)}
-                                        className="rounded border-stone-300 text-pizza-500 focus:ring-pizza-500 cursor-pointer"
-                                    />
-                                    <label htmlFor="permanentCheck" className="text-xs font-bold text-stone-600 cursor-pointer select-none">永久公告</label>
-                                </div>
-                            </div>
-                            
-                            <div className="p-1 bg-stone-100/50 rounded-2xl border border-stone-200 flex flex-col sm:flex-row gap-0.5">
-                                 {/* Start Date */}
-                                 <div 
-                                    onClick={() => openCalendar('start')}
-                                    className={`flex-1 relative bg-white rounded-xl sm:rounded-r-none sm:rounded-l-xl p-3 hover:bg-stone-50 transition-colors group cursor-pointer ${isStartCalendarOpen ? 'ring-2 ring-pizza-500 z-20' : ''}`}
-                                 >
-                                    <span className="absolute top-2 left-3 text-[10px] text-stone-400 font-bold uppercase tracking-wider">起始日期</span>
-                                    <div className="w-full pt-4 pb-1 px-1 text-stone-800 font-bold font-mono text-sm">
-                                        {dates.start || <span className="text-stone-300">選擇日期</span>}
-                                    </div>
-                                 </div>
-                                 <div className="w-full sm:w-px bg-stone-200"></div>
-                                 {/* End Date */}
-                                 <div 
-                                    onClick={() => openCalendar('end')}
-                                    className={`flex-1 relative rounded-xl sm:rounded-l-none sm:rounded-r-xl p-3 transition-colors group ${isPermanent ? 'bg-stone-50 cursor-not-allowed opacity-50' : 'bg-white hover:bg-stone-50 cursor-pointer'} ${isEndCalendarOpen ? 'ring-2 ring-pizza-500 z-20' : ''}`}
-                                 >
-                                    <span className="absolute top-2 left-3 text-[10px] text-stone-400 font-bold uppercase tracking-wider">結束日期 (選填)</span>
-                                    <div className="w-full pt-4 pb-1 px-1 text-stone-800 font-bold font-mono text-sm">
-                                        {isPermanent ? '永久有效' : (dates.end || <span className="text-stone-300">選擇日期</span>)}
-                                    </div>
-                                 </div>
-                            </div>
-                            
-                            {/* Calendar Popover */}
-                            {(isStartCalendarOpen || isEndCalendarOpen) && (
-                                <div className={`absolute z-50 top-full mt-2 shadow-2xl animate-fade-in ${isStartCalendarOpen ? 'left-0' : 'right-0'}`}>
-                                    <Calendar 
-                                        currentDate={calendarViewDate}
-                                        onMonthChange={(offset) => setCalendarViewDate(new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + offset, 1))}
-                                        onDateSet={(date) => setCalendarViewDate(date)}
-                                        onDateClick={handleDateSelect}
-                                        simpleMode={true}
-                                        activeDate={isStartCalendarOpen ? dates.start : dates.end}
-                                    />
-                                </div>
-                            )}
-                        </div>
-
-                        {/* 3. Announcement Cycle (Weekdays) */}
-                        <div className="p-6 bg-stone-50 rounded-2xl border border-stone-100">
-                            <label className="block text-xs font-bold uppercase text-stone-500 mb-4 text-center tracking-widest">公告週期 (選擇重複星期)</label>
-                            <div className="flex justify-center gap-4 flex-wrap">
-                                {weekDaysUI.map(d => (
-                                    <button
-                                        key={d.val}
-                                        onClick={() => toggleWeekDay(d.val)}
-                                        className={`w-10 h-10 md:w-12 md:h-12 rounded-full font-bold text-sm md:text-base transition-all shadow-sm flex items-center justify-center ${
-                                            selectedWeekDays.includes(d.val)
-                                                ? 'bg-pizza-500 text-white transform scale-110 shadow-pizza-200/50'
-                                                : 'bg-white text-stone-400 border border-stone-200 hover:border-pizza-300 hover:text-pizza-500'
-                                        }`}
-                                    >
-                                        {d.label}
-                                    </button>
-                                ))}
-                            </div>
-                            <p className="text-center text-[10px] text-stone-400 mt-3 font-bold">
-                                {selectedWeekDays.length === 0 ? '目前設定：每日重複 (依照有效期間)' : '目前設定：每週重複指定星期'}
-                            </p>
-                        </div>
-
-                        {/* 4. Targets */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-stone-100">
-                            <div>
-                                <label className="block text-xs font-bold uppercase text-stone-500 mb-3 tracking-widest">目標職等</label>
-                                <div className="flex gap-2 flex-wrap">
-                                    {roleTags.map(tag => (
-                                        <button key={tag.id} onClick={() => {
-                                            if (targetRoles.includes(tag.value)) setTargetRoles(targetRoles.filter(x => x !== tag.value));
-                                            else setTargetRoles([...targetRoles, tag.value]);
-                                        }} className={`px-4 py-2 rounded-full border text-xs font-bold transition-all ${targetRoles.includes(tag.value) ? 'bg-pizza-500 text-white border-pizza-500 shadow-md' : 'bg-white border-stone-200 text-stone-500 hover:border-stone-300'}`}>
-                                            {tag.value}
-                                        </button>
-                                    ))}
-                                    {roleTags.length === 0 && <p className="text-xs text-stone-400">無職等標籤</p>}
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold uppercase text-stone-500 mb-3 tracking-widest">目標站區</label>
-                                <div className="flex gap-2 flex-wrap">
-                                    {stationTags.map(tag => (
-                                        <button key={tag.id} onClick={() => {
-                                            if (targetStations.includes(tag.value)) setTargetStations(targetStations.filter(x => x !== tag.value));
-                                            else setTargetStations([...targetStations, tag.value]);
-                                        }} className={`px-4 py-2 rounded-full border text-xs font-bold transition-all ${targetStations.includes(tag.value) ? 'bg-sky-500 text-white border-sky-500 shadow-md' : 'bg-white border-stone-200 text-stone-500 hover:border-stone-300'}`}>
-                                            {tag.value}
-                                        </button>
-                                    ))}
-                                    {stationTags.length === 0 && <p className="text-xs text-stone-400">無站區標籤</p>}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+        <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+            <div className="flex-grow">
+                <Link to={userRole === 'admin' ? "/announcement-list" : "/"} className="text-xs font-bold text-stone-400 hover:text-pizza-500 uppercase tracking-widest mb-4 block">← 返回列表</Link>
+                <h1 className="text-4xl md:text-5xl font-playfair font-bold text-stone-900 mb-4">{announcement.title}</h1>
+                <div className="flex gap-3 mb-2">
+                    <span className="px-3 py-1 bg-stone-100 text-stone-600 rounded-full text-xs font-bold uppercase tracking-wider">{announcement.category}</span>
+                    <span className="px-3 py-1 bg-stone-100 text-stone-600 rounded-full text-xs font-bold uppercase tracking-wider">{announcement.start_date}</span>
                 </div>
-            ) : (
-                <>
-                    <h1 className="text-4xl md:text-5xl font-playfair font-bold text-stone-900 mb-4">{announcement.title}</h1>
-                    <div className="flex gap-3 mb-6">
-                        <span className="px-3 py-1 bg-stone-100 text-stone-600 rounded-full text-xs font-bold uppercase tracking-wider">{announcement.category}</span>
-                        <span className="px-3 py-1 bg-stone-100 text-stone-600 rounded-full text-xs font-bold uppercase tracking-wider">{announcement.start_date}</span>
-                    </div>
-                </>
+            </div>
+            
+            {canManage && (
+                <button 
+                    onClick={() => setIsPreviewMode(!isPreviewMode)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${isPreviewMode ? 'bg-pizza-500 text-white shadow-lg' : 'bg-white text-stone-500 border border-stone-200 hover:bg-stone-50'}`}
+                >
+                    {isPreviewMode ? <EyeSlashIcon /> : <EyeIcon />}
+                    {isPreviewMode ? '結束預覽' : '預覽模式'}
+                </button>
             )}
         </div>
+        
+        {canEdit ? (
+            <div className="glass-panel p-8 rounded-3xl mb-8 bg-white border border-stone-200 shadow-sm">
+                <input value={announcement.title} onChange={e => setAnnouncement({...announcement, title: e.target.value})} className="text-3xl md:text-4xl font-playfair font-bold text-stone-900 w-full bg-transparent outline-none mb-8 placeholder-stone-300 border-b border-transparent focus:border-stone-200 pb-2 transition-all" placeholder="公告標題" />
+                <div className="space-y-6">
+                    <div>
+                        <label className="block text-xs font-bold uppercase text-stone-500 mb-2 tracking-widest">內容</label>
+                        <div className="flex flex-wrap gap-2">
+                            {contentTags.map(tag => (
+                                <button key={tag.id} onClick={() => setCategory(tag.value)} className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${category === tag.value ? 'bg-pizza-500 text-white border-pizza-500 shadow-md' : 'bg-white text-stone-500 border-stone-200 hover:border-pizza-300'}`}>{tag.value}</button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="relative" ref={calendarRef}>
+                        <div className="flex justify-between items-end mb-2">
+                            <label className="block text-xs font-bold uppercase text-stone-500 tracking-widest">公告有效期間</label>
+                            <div className="flex items-center gap-2"><input type="checkbox" id="permanentCheck" checked={isPermanent} onChange={(e) => setIsPermanent(e.target.checked)} className="rounded border-stone-300 text-pizza-500 focus:ring-pizza-500 cursor-pointer"/><label htmlFor="permanentCheck" className="text-xs font-bold text-stone-600 cursor-pointer select-none">永久公告</label></div>
+                        </div>
+                        <div className="p-1 bg-stone-100/50 rounded-2xl border border-stone-200 flex flex-col sm:flex-row gap-0.5">
+                                <div onClick={() => openCalendar('start')} className={`flex-1 relative bg-white rounded-xl sm:rounded-r-none sm:rounded-l-xl p-3 hover:bg-stone-50 transition-colors group cursor-pointer ${isStartCalendarOpen ? 'ring-2 ring-pizza-500 z-20' : ''}`}>
+                                <span className="absolute top-2 left-3 text-[10px] text-stone-400 font-bold uppercase tracking-wider">起始日期</span>
+                                <div className="w-full pt-4 pb-1 px-1 text-stone-800 font-bold font-mono text-sm">{dates.start || <span className="text-stone-300">選擇日期</span>}</div>
+                                </div>
+                                <div className="w-full sm:w-px bg-stone-200"></div>
+                                <div onClick={() => openCalendar('end')} className={`flex-1 relative rounded-xl sm:rounded-l-none sm:rounded-r-xl p-3 transition-colors group ${isPermanent ? 'bg-stone-50 cursor-not-allowed opacity-50' : 'bg-white hover:bg-stone-50 cursor-pointer'} ${isEndCalendarOpen ? 'ring-2 ring-pizza-500 z-20' : ''}`}>
+                                <span className="absolute top-2 left-3 text-[10px] text-stone-400 font-bold uppercase tracking-wider">結束日期 (選填)</span>
+                                <div className="w-full pt-4 pb-1 px-1 text-stone-800 font-bold font-mono text-sm">{isPermanent ? '永久有效' : (dates.end || <span className="text-stone-300">選擇日期</span>)}</div>
+                                </div>
+                        </div>
+                        {(isStartCalendarOpen || isEndCalendarOpen) && (
+                            <div className={`absolute z-50 top-full mt-2 shadow-2xl animate-fade-in ${isStartCalendarOpen ? 'left-0' : 'right-0'}`}>
+                                <Calendar currentDate={calendarViewDate} onMonthChange={(offset) => setCalendarViewDate(new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + offset, 1))} onDateSet={(date) => setCalendarViewDate(date)} onDateClick={handleDateSelect} simpleMode={true} activeDate={isStartCalendarOpen ? dates.start : dates.end} />
+                            </div>
+                        )}
+                    </div>
+                    <div className="p-6 bg-stone-50 rounded-2xl border border-stone-100">
+                        <label className="block text-xs font-bold uppercase text-stone-500 mb-4 text-center tracking-widest">公告週期 (選擇重複星期)</label>
+                        <div className="flex justify-center gap-4 flex-wrap">
+                            {weekDaysUI.map(d => (
+                                <button key={d.val} onClick={() => toggleWeekDay(d.val)} className={`w-10 h-10 md:w-12 md:h-12 rounded-full font-bold text-sm md:text-base transition-all shadow-sm flex items-center justify-center ${selectedWeekDays.includes(d.val) ? 'bg-pizza-500 text-white transform scale-110 shadow-pizza-200/50' : 'bg-white text-stone-400 border border-stone-200 hover:border-pizza-300 hover:text-pizza-500'}`}>{d.label}</button>
+                            ))}
+                        </div>
+                        <p className="text-center text-[10px] text-stone-400 mt-3 font-bold">{selectedWeekDays.length === 0 ? '目前設定：每日重複 (依照有效期間)' : '目前設定：每週重複指定星期'}</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-stone-100">
+                        <div>
+                            <label className="block text-xs font-bold uppercase text-stone-500 mb-3 tracking-widest">目標職等</label>
+                            <div className="flex gap-2 flex-wrap">
+                                {roleTags.map(tag => (
+                                    <button key={tag.id} onClick={() => { if (targetRoles.includes(tag.value)) setTargetRoles(targetRoles.filter(x => x !== tag.value)); else setTargetRoles([...targetRoles, tag.value]); }} className={`px-4 py-2 rounded-full border text-xs font-bold transition-all ${targetRoles.includes(tag.value) ? 'bg-pizza-500 text-white border-pizza-500 shadow-md' : 'bg-white border-stone-200 text-stone-500 hover:border-stone-300'}`}>{tag.value}</button>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold uppercase text-stone-500 mb-3 tracking-widest">目標站區</label>
+                            <div className="flex gap-2 flex-wrap">
+                                {stationTags.map(tag => (
+                                    <button key={tag.id} onClick={() => { if (targetStations.includes(tag.value)) setTargetStations(targetStations.filter(x => x !== tag.value)); else setTargetStations([...targetStations, tag.value]); }} className={`px-4 py-2 rounded-full border text-xs font-bold transition-all ${targetStations.includes(tag.value) ? 'bg-sky-500 text-white border-sky-500 shadow-md' : 'bg-white border-stone-200 text-stone-500 hover:border-stone-300'}`}>{tag.value}</button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        ) : null}
 
-        {/* Content */}
         <div className="glass-panel p-8 md:p-12 rounded-3xl min-h-[40vh] bg-white shadow-xl relative z-0 border border-white">
-            {blocks.map((block, index) => (
-                <div key={block.id} className="group relative">
-                    {canEdit && (
-                         <div className="absolute right-0 -top-8 flex gap-1 bg-white shadow-sm border border-stone-100 rounded-lg p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                            <button onClick={() => moveBlock(index, 'up')} className="p-1 hover:bg-stone-100 rounded"><ChevronUpIcon/></button>
-                            <button onClick={() => moveBlock(index, 'down')} className="p-1 hover:bg-stone-100 rounded"><ChevronDownIcon/></button>
-                            <button onClick={(e) => deleteBlock(block.id, e)} className="p-1 hover:bg-red-50 text-red-500 rounded"><TrashIcon className="w-4 h-4"/></button>
-                         </div>
-                    )}
-                    <BlockRenderer 
-                        block={block} 
-                        isEditing={canEdit} 
-                        onUpdate={updateBlock} 
-                        onUpdateProps={updateBlockProps} 
-                        onConfirmAction={(msg, action) => {
-                             setConfirmState({ message: msg, onConfirm: () => { action(); setConfirmState(null); } });
-                        }}
-                    />
-                </div>
-            ))}
-            
-            {canEdit && (
-                <div className="mt-12 pt-8 border-t border-stone-100 flex justify-center gap-3">
-                    <button onClick={() => addBlock('text')} className="p-2 border rounded hover:bg-stone-50"><TypeIcon/></button>
-                    <button onClick={() => addBlock('heading-1')} className="px-3 py-2 border rounded font-serif font-bold hover:bg-stone-50">H1</button>
-                    <button onClick={() => addBlock('heading-2')} className="px-3 py-2 border rounded font-serif font-bold hover:bg-stone-50">H2</button>
-                    <button onClick={() => addBlock('image')} className="p-2 border rounded hover:bg-stone-50"><ImageIcon/></button>
-                    <button onClick={() => addBlock('video')} className="p-2 border rounded hover:bg-stone-50"><VideoIcon/></button>
-                    <button onClick={() => addBlock('bullet-list')} className="px-3 py-2 border rounded font-bold text-xs hover:bg-stone-50">• List</button>
-                    <button onClick={() => addBlock('divider')} className="px-3 py-2 border rounded font-bold text-xs hover:bg-stone-50">—</button>
-                </div>
-            )}
-            
+            {blocks.map((block, index) => {
+                let currentIndex = undefined;
+                if (block.type === 'number-list') currentIndex = listIndex++;
+                else listIndex = 1;
+
+                return (
+                    <div key={block.id} className="group relative">
+                        {canEdit && (
+                             <div className="absolute right-0 -top-8 flex gap-1 bg-white shadow-sm border border-stone-100 rounded-lg p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                <Tooltip text="上移"><button onClick={() => moveBlock(index, 'up')} className="p-1 hover:bg-stone-100 rounded"><ChevronUpIcon/></button></Tooltip>
+                                <Tooltip text="下移"><button onClick={() => moveBlock(index, 'down')} className="p-1 hover:bg-stone-100 rounded"><ChevronDownIcon/></button></Tooltip>
+                                <Tooltip text="刪除"><button onClick={(e) => deleteBlock(block.id, e)} className="p-1 hover:bg-red-50 text-red-500 rounded"><TrashIcon className="w-4 h-4"/></button></Tooltip>
+                             </div>
+                        )}
+                        <BlockRenderer block={block} isEditing={canEdit} onUpdate={updateBlock} onUpdateProps={updateBlockProps} onConfirmAction={(msg, action) => { setConfirmState({ message: msg, onConfirm: () => { action(); setConfirmState(null); } }); }} indexContext={currentIndex} />
+                    </div>
+                );
+            })}
             <div ref={bottomRef} className="h-10 w-full"></div>
         </div>
 
         {canEdit && (
             <>
-                <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-2">
+                <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-2 mr-20">
                     {lastSaved && <span className="text-[10px] font-bold text-stone-400 bg-white/80 px-2 py-1 rounded-md backdrop-blur-sm">已儲存: {lastSaved.toLocaleTimeString()}</span>}
                     <button onClick={handleSave} disabled={saving} className="texture-grain flex items-center gap-2 px-6 py-4 bg-stone-900 text-white rounded-full shadow-2xl hover:bg-pizza-500 hover:scale-105 transition-all font-bold text-sm uppercase tracking-widest">
                         {saving ? '...' : <><SaveIcon /> 儲存公告</>}
                     </button>
                 </div>
 
-                {/* Read Receipts Section with Confirmation */}
                 <div className="mt-12 space-y-8">
-                    {/* Combined Relevant List */}
                     <div className="glass-panel p-8 rounded-3xl bg-white/60">
                         <h3 className="text-sm font-bold text-stone-500 uppercase tracking-widest mb-6 flex items-center gap-2">
                             <span className="w-2 h-2 bg-stone-800 rounded-full"></span>
                             相關人員 ({targetPersonnelList.length})
                         </h3>
-                        
                         {targetPersonnelList.length === 0 ? (
                             <p className="text-stone-400 text-xs font-serif text-center py-4">無相關人員</p>
                         ) : (
@@ -735,51 +1051,25 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
                                         {targetPersonnelList.map(p => {
                                             const isRead = !!p.readRecord;
                                             const isConfirmed = !!p.readRecord?.is_confirmed;
-                                            
                                             let rowBgClass = 'bg-red-50 hover:bg-red-100';
-                                            if (isConfirmed) {
-                                                rowBgClass = 'bg-blue-50 hover:bg-blue-100';
-                                            } else if (isRead) {
-                                                rowBgClass = 'bg-emerald-50 hover:bg-emerald-100';
-                                            }
+                                            if (isConfirmed) rowBgClass = 'bg-blue-50 hover:bg-blue-100';
+                                            else if (isRead) rowBgClass = 'bg-emerald-50 hover:bg-emerald-100';
 
                                             const createdDate = announcement?.created_at || announcement?.start_date || '';
                                             const readDate = p.readRecord?.read_at;
-                                            const timeTaken = (isRead && readDate && createdDate) 
-                                                ? calculateTimeTaken(createdDate, readDate) 
-                                                : '-';
+                                            const timeTaken = (isRead && readDate && createdDate) ? calculateTimeTaken(createdDate, readDate) : '-';
 
                                             return (
                                                 <tr key={p.id} className={`${rowBgClass} border-b border-white/50 transition-colors`}>
                                                     <td className="px-6 py-4 font-bold text-stone-800">{p.name}</td>
                                                     <td className="px-6 py-4 text-xs text-stone-500">{p.jobTitle}</td>
-                                                    <td className="px-6 py-4 font-mono text-xs text-stone-500">
-                                                        {isRead ? new Date(readDate!).toLocaleString() : '-'}
-                                                    </td>
-                                                    <td className="px-6 py-4 font-mono text-xs text-stone-500">
-                                                        {timeTaken}
-                                                    </td>
+                                                    <td className="px-6 py-4 font-mono text-xs text-stone-500">{isRead ? new Date(readDate!).toLocaleString() : '-'}</td>
+                                                    <td className="px-6 py-4 font-mono text-xs text-stone-500">{timeTaken}</td>
                                                     <td className="px-6 py-4 text-center">
-                                                        {isRead ? (
-                                                            <input 
-                                                                type="checkbox" 
-                                                                checked={!!p.readRecord?.is_confirmed} 
-                                                                onChange={(e) => handleConfirmRead(p.id, e.target.checked)}
-                                                                className="h-5 w-5 rounded border-stone-300 text-pizza-500 focus:ring-pizza-500 cursor-pointer"
-                                                            />
-                                                        ) : (
-                                                            <span className="text-stone-300">-</span>
-                                                        )}
+                                                        {isRead ? <input type="checkbox" checked={!!p.readRecord?.is_confirmed} onChange={(e) => handleConfirmRead(p.id, e.target.checked)} className="h-5 w-5 rounded border-stone-300 text-pizza-500 focus:ring-pizza-500 cursor-pointer"/> : <span className="text-stone-300">-</span>}
                                                     </td>
                                                     <td className="px-6 py-4 text-xs">
-                                                        {p.readRecord?.is_confirmed ? (
-                                                            <div className="flex flex-col">
-                                                                <span className="font-bold text-pizza-600">由 {p.readRecord.confirmed_by}</span>
-                                                                <span className="text-stone-400 font-mono text-[10px]">{new Date(p.readRecord.confirmed_at!).toLocaleString()}</span>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-stone-300">-</span>
-                                                        )}
+                                                        {p.readRecord?.is_confirmed ? (<div className="flex flex-col"><span className="font-bold text-pizza-600">由 {p.readRecord.confirmed_by}</span><span className="text-stone-400 font-mono text-[10px]">{new Date(p.readRecord.confirmed_at!).toLocaleString()}</span></div>) : <span className="text-stone-300">-</span>}
                                                     </td>
                                                 </tr>
                                             );

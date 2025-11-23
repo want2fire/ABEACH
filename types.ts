@@ -9,7 +9,7 @@ export interface TagData {
 }
 
 // SOP Block Types
-export type BlockType = 'text' | 'heading-1' | 'heading-2' | 'heading-3' | 'bullet-list' | 'number-list' | 'image' | 'video' | 'callout' | 'divider' | 'table';
+export type BlockType = 'text' | 'heading-1' | 'heading-2' | 'heading-3' | 'bullet-list' | 'number-list' | 'image' | 'video' | 'callout' | 'divider' | 'table' | 'pdf' | 'toggle';
 
 export interface SOPBlock {
   id: string;
@@ -19,6 +19,7 @@ export interface SOPBlock {
     color?: string; // Text color or background color for callouts
     align?: 'left' | 'center' | 'right';
     caption?: string;
+    details?: string; // For toggle block hidden content
   };
 }
 
