@@ -21,14 +21,18 @@ const QUOTES = [
 
 type TabType = 'today' | 'week' | 'month';
 
+interface AnnouncementWithStatus extends Announcement {
+    is_confirmed?: boolean;
+}
+
 const HomePage: React.FC<HomePageProps> = ({ user }) => {
     const [quoteIndex, setQuoteIndex] = useState(0);
     const [activeTab, setActiveTab] = useState<TabType>('today');
     
     // Announcement Lists
-    const [todayAnnos, setTodayAnnos] = useState<Announcement[]>([]);
-    const [weekAnnos, setWeekAnnos] = useState<Announcement[]>([]);
-    const [monthAnnos, setMonthAnnos] = useState<Announcement[]>([]);
+    const [todayAnnos, setTodayAnnos] = useState<AnnouncementWithStatus[]>([]);
+    const [weekAnnos, setWeekAnnos] = useState<AnnouncementWithStatus[]>([]);
+    const [monthAnnos, setMonthAnnos] = useState<AnnouncementWithStatus[]>([]);
     
     const [isLoadingAnnos, setIsLoadingAnnos] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -57,20 +61,29 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
             const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
             // Fetch all potentially active announcements
-            const { data } = await supabase.from('announcements')
+            const { data: annosData } = await supabase.from('announcements')
                 .select('*')
                 .eq('is_active', true)
                 .lte('start_date', todayStr)
                 .order('start_date', { ascending: false });
 
-            if (data) {
-                const activeAnnos = (data as Announcement[]).filter(a => {
+            // Fetch Read Status for current user
+            const { data: readsData } = await supabase
+                .from('announcement_reads')
+                .select('announcement_id, is_confirmed')
+                .eq('personnel_id', user.id);
+            
+            const confirmedMap = new Set(readsData?.filter((r: any) => r.is_confirmed).map((r: any) => r.announcement_id));
+
+            if (annosData) {
+                const activeAnnos = (annosData as Announcement[]).filter(a => {
                     // 1. Role Check
                     const roleMatch = (a.target_roles || []).some(r => {
                         const rTrimmed = r.trim();
                         if (rTrimmed === '一般員工') return true;
                         if (rTrimmed === 'DUTY' && (user.jobTitle.includes('DUTY') || user.jobTitle === 'A TEAM' || user.jobTitle === '管理員')) return true;
                         if (rTrimmed === 'ATEAM' && (user.jobTitle === 'A TEAM' || user.jobTitle === '管理員')) return true;
+                        if (user.jobTitle === rTrimmed) return true;
                         return false;
                     });
                     
@@ -83,8 +96,6 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                     });
 
                     // 3. Cycle Check
-                    // Note: We first filter by what should be visible TODAY.
-                    // Then we categorize them into tabs based on their DURATION.
                     let cycleMatch = true;
                     if (a.cycle_type === 'monthly') {
                         if (currentDayOfMonth !== 1) cycleMatch = false;
@@ -101,12 +112,15 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                     }
                     
                     return roleMatch && stationMatch && cycleMatch;
-                });
+                }).map(a => ({
+                    ...a,
+                    is_confirmed: confirmedMap.has(a.id)
+                }));
 
                 // Categorize Logic
-                const todayList: Announcement[] = [];
-                const weekList: Announcement[] = [];
-                const monthList: Announcement[] = [];
+                const todayList: AnnouncementWithStatus[] = [];
+                const weekList: AnnouncementWithStatus[] = [];
+                const monthList: AnnouncementWithStatus[] = [];
 
                 activeAnnos.forEach(a => {
                     // Calculate Duration
@@ -118,25 +132,17 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                         duration = Math.ceil(diff / (1000 * 3600 * 24)) + 1; // inclusive
                     }
 
-                    // Logic:
-                    // Today: Duration <= 6
-                    // Week: Duration > 6 AND (Not Permanent AND EndDate < EndOfMonth)
-                    // Month: Duration > 6 AND (Permanent OR EndDate >= EndOfMonth)
-
                     if (duration <= 6) {
                         todayList.push(a);
                     } else {
                         const isPermanent = !a.end_date;
-                        // Safe compare for end date. If permanent, effectively infinity.
-                        const endDateStr = a.end_date || '9999-12-31';
-                        const endDateObj = new Date(endDateStr);
+                        const endDate = a.end_date ? new Date(a.end_date) : new Date(8640000000000000);
                         
-                        // Normalize endOfMonth to string for comparison or objects
-                        // Let's use object comparison
+                        // Normalize endOfMonth
                         const endOfMonthObj = new Date(now.getFullYear(), now.getMonth() + 1, 0);
                         endOfMonthObj.setHours(23, 59, 59, 999);
 
-                        if (isPermanent || endDateObj >= endOfMonthObj) {
+                        if (isPermanent || endDate >= endOfMonthObj) {
                             monthList.push(a);
                         } else {
                             weekList.push(a);
@@ -144,9 +150,15 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                     }
                 });
 
-                setTodayAnnos(todayList);
-                setWeekAnnos(weekList);
-                setMonthAnnos(monthList);
+                // Sort: Unconfirmed first, then Confirmed
+                const sorter = (a: AnnouncementWithStatus, b: AnnouncementWithStatus) => {
+                    if (a.is_confirmed === b.is_confirmed) return 0;
+                    return a.is_confirmed ? 1 : -1;
+                };
+
+                setTodayAnnos(todayList.sort(sorter));
+                setWeekAnnos(weekList.sort(sorter));
+                setMonthAnnos(monthList.sort(sorter));
                 
                 // Determine default active tab
                 if (todayList.length > 0) setActiveTab('today');
@@ -206,13 +218,16 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                                     <Link 
                                         key={anno.id} 
                                         to={`/announcement/${anno.id}`}
-                                        className="block group"
+                                        className={`block group ${anno.is_confirmed ? 'opacity-50 grayscale order-last' : ''}`}
                                     >
                                         <div className="flex items-center justify-between p-3 rounded-xl hover:bg-stone-50 transition-colors border border-transparent hover:border-stone-100">
                                             <div className="flex items-center gap-4 overflow-hidden">
                                                 <span className={`shrink-0 w-2 h-2 rounded-full ${anno.category === '營運' ? 'bg-blue-400' : anno.category === '包場' ? 'bg-purple-400' : 'bg-pizza-500'}`}></span>
-                                                <span className="text-lg font-bold text-stone-700 truncate group-hover:text-pizza-600 transition-colors">{anno.title}</span>
+                                                <span className={`text-lg font-bold text-stone-700 truncate group-hover:text-pizza-600 transition-colors ${anno.is_confirmed ? 'line-through decoration-stone-300' : ''}`}>{anno.title}</span>
                                                 <span className="px-2 py-0.5 bg-stone-100 text-stone-500 text-[10px] font-bold rounded hidden md:inline-block whitespace-nowrap">{anno.category}</span>
+                                                {anno.is_confirmed && (
+                                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded whitespace-nowrap">已確認</span>
+                                                )}
                                             </div>
                                             <span className="text-stone-400 group-hover:text-pizza-500 transition-colors font-bold text-xl ml-4">→</span>
                                         </div>

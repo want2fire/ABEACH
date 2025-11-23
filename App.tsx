@@ -400,7 +400,7 @@ const App: React.FC = () => {
                 
                 {/* Announcement Routes */}
                 <Route path="/announcement-list" element={currentUser.role === 'admin' ? <AnnouncementListPage /> : <Navigate to="/" />} />
-                <Route path="/announcement/:id" element={<AnnouncementDetailPage userRole={currentUser.role} userId={currentUser.id} />} />
+                <Route path="/announcement/:id" element={<AnnouncementDetailPage userRole={currentUser.role} userId={currentUser.id} userName={currentUser.name} />} />
             </Routes>
             </main>
         </div>

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { type Announcement, type SOPBlock, type BlockType, type UserRole, type AnnouncementRead, type TagData } from '../types';
+import { type Announcement, type SOPBlock, type BlockType, type UserRole, type AnnouncementRead, type TagData, type Personnel } from '../types';
 import Tooltip from '../components/Tooltip';
 import { TrashIcon } from '../components/icons/TrashIcon';
 import { PlusIcon } from '../components/icons/PlusIcon';
@@ -137,7 +137,7 @@ const BlockRenderer: React.FC<{
   }
 };
 
-const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string }> = ({ userRole, userId }) => {
+const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; userName?: string }> = ({ userRole, userId, userName }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
@@ -146,7 +146,9 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string }> =
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [confirmState, setConfirmState] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  
   const [readBy, setReadBy] = useState<AnnouncementRead[]>([]);
+  const [unreadPersonnel, setUnreadPersonnel] = useState<Personnel[]>([]);
   
   // Settings for Admin
   const [targetRoles, setTargetRoles] = useState<string[]>([]);
@@ -246,9 +248,39 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string }> =
                   announcement_id: r.announcement_id,
                   personnel_id: r.personnel_id,
                   read_at: r.read_at,
-                  personnel_name: r.personnel?.name
+                  personnel_name: r.personnel?.name,
+                  is_confirmed: r.is_confirmed,
+                  confirmed_by: r.confirmed_by,
+                  confirmed_at: r.confirmed_at
               })));
           }
+
+          // Calculate Unread
+          const { data: allPersonnel } = await supabase.from('personnel').select('*').eq('status', '在職');
+          if (allPersonnel) {
+              const readIds = new Set(reads?.map((r: any) => r.personnel_id) || []);
+              const unread = (allPersonnel as Personnel[]).filter(p => {
+                  // Filter based on targeting logic
+                  const roleMatch = anno.target_roles?.some((r: string) => {
+                      const rTrimmed = r.trim();
+                      if (rTrimmed === '一般員工') return true;
+                      if (rTrimmed === 'DUTY' && (p.jobTitle.includes('DUTY') || p.jobTitle === 'A TEAM' || p.jobTitle === '管理員')) return true;
+                      if (rTrimmed === 'ATEAM' && (p.jobTitle === 'A TEAM' || p.jobTitle === '管理員')) return true;
+                      if (p.jobTitle === rTrimmed) return true;
+                      return false;
+                  });
+                  const stationMatch = anno.target_stations?.some((s: string) => {
+                      const sTrimmed = s.trim();
+                      if (sTrimmed === '全體') return true;
+                      if (p.station === sTrimmed) return true;
+                      return false;
+                  });
+                  
+                  return roleMatch && stationMatch && !readIds.has(p.id);
+              });
+              setUnreadPersonnel(unread);
+          }
+
       } else {
           // Check if already read by current user
           const { data: myRead } = await supabase
@@ -279,23 +311,72 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string }> =
 
   const markAsRead = async () => {
       hasReadRef.current = true;
-      await supabase.from('announcement_reads').upsert({
+      const nowStr = new Date().toISOString();
+      
+      // Check for existing read to handle cycle reset
+      const { data: existing } = await supabase
+        .from('announcement_reads')
+        .select('*')
+        .eq('announcement_id', id)
+        .eq('personnel_id', userId)
+        .single();
+
+      let shouldResetConfirmation = false;
+      if (existing) {
+          const readDate = new Date(existing.read_at);
+          const today = new Date();
+          // If last read was not today, assume new cycle/new attention needed -> reset confirmation
+          if (readDate.toDateString() !== today.toDateString()) {
+              shouldResetConfirmation = true;
+          }
+      } else {
+          // First time reading, ensure default false
+          shouldResetConfirmation = true; 
+      }
+
+      const payload: any = {
           announcement_id: id,
           personnel_id: userId,
-          read_at: new Date().toISOString()
-      }, { onConflict: 'announcement_id,personnel_id' });
+          read_at: nowStr
+      };
+      
+      // Only force false if it's a new read/new cycle. 
+      // If user just refreshed page on same day, don't wipe admin's confirmation.
+      if (shouldResetConfirmation) {
+          payload.is_confirmed = false;
+          payload.confirmed_by = null;
+          payload.confirmed_at = null;
+      }
+
+      await supabase.from('announcement_reads').upsert(payload, { onConflict: 'announcement_id,personnel_id' });
+  };
+
+  const handleConfirmRead = async (personnelId: string, isConfirmed: boolean) => {
+      const now = new Date().toISOString();
+      
+      // Optimistic Update
+      setReadBy(prev => prev.map(r => 
+          r.personnel_id === personnelId 
+          ? { ...r, is_confirmed: isConfirmed, confirmed_by: isConfirmed ? userName : undefined, confirmed_at: isConfirmed ? now : undefined }
+          : r
+      ));
+
+      const { error } = await supabase.from('announcement_reads').update({
+          is_confirmed: isConfirmed,
+          confirmed_by: isConfirmed ? userName : null,
+          confirmed_at: isConfirmed ? now : null
+      }).match({ announcement_id: id, personnel_id: personnelId });
+
+      if (error) alert('更新失敗');
   };
 
   const handleSave = async () => {
     if (!id) return;
-    
-    // Validation
     if (!announcement?.title?.trim()) {
         alert('請輸入公告標題');
         return;
     }
 
-    // Determine Cycle Type Implicitly
     let finalCycleType = 'daily';
     if (selectedWeekDays.length > 0) {
         finalCycleType = `weekly:${selectedWeekDays.join(',')}`;
@@ -351,7 +432,6 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string }> =
       else setSelectedWeekDays(prev => [...prev, day]);
   };
 
-  // Calendar Helpers
   const handleDateSelect = (dateStr: string) => {
       if (isStartCalendarOpen) {
           setDates(prev => ({ ...prev, start: dateStr }));
@@ -364,29 +444,18 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string }> =
 
   const openCalendar = (type: 'start' | 'end') => {
       if (type === 'end' && isPermanent) return;
-
       const initialDateStr = type === 'start' ? dates.start : dates.end;
       const initialDate = initialDateStr ? new Date(initialDateStr) : new Date();
       if (isNaN(initialDate.getTime())) setCalendarViewDate(new Date());
       else setCalendarViewDate(initialDate);
 
-      if (type === 'start') {
-          setIsStartCalendarOpen(true);
-          setIsEndCalendarOpen(false);
-      } else {
-          setIsEndCalendarOpen(true);
-          setIsStartCalendarOpen(false);
-      }
+      if (type === 'start') { setIsStartCalendarOpen(true); setIsEndCalendarOpen(false); } 
+      else { setIsEndCalendarOpen(true); setIsStartCalendarOpen(false); }
   };
 
   const weekDaysUI = [
-      { label: '一', val: 1 },
-      { label: '二', val: 2 },
-      { label: '三', val: 3 },
-      { label: '四', val: 4 },
-      { label: '五', val: 5 },
-      { label: '六', val: 6 },
-      { label: '日', val: 0 },
+      { label: '一', val: 1 }, { label: '二', val: 2 }, { label: '三', val: 3 },
+      { label: '四', val: 4 }, { label: '五', val: 5 }, { label: '六', val: 6 }, { label: '日', val: 0 },
   ];
 
   if (loading) return <div className="min-h-screen flex justify-center items-center">載入中...</div>;
@@ -442,7 +511,7 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string }> =
                             </div>
                         </div>
 
-                        {/* 2. Date Range Block - With Custom Calendar Popover */}
+                        {/* 2. Date Range Block */}
                         <div className="relative" ref={calendarRef}>
                             <div className="flex justify-between items-end mb-2">
                                 <label className="block text-xs font-bold uppercase text-stone-500 tracking-widest">公告有效期間</label>
@@ -600,7 +669,6 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string }> =
                 </div>
             )}
             
-            {/* Scroll Anchor */}
             <div ref={bottomRef} className="h-10 w-full"></div>
         </div>
 
@@ -613,21 +681,85 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string }> =
                     </button>
                 </div>
 
-                {/* Read Receipts */}
-                <div className="mt-12 glass-panel p-8 rounded-3xl bg-white/60">
-                    <h3 className="text-sm font-bold text-stone-500 uppercase tracking-widest mb-4">當日已閱讀者 ({readBy.filter(r => new Date(r.read_at).toDateString() === new Date().toDateString()).length})</h3>
-                    {readBy.length === 0 ? <p className="text-stone-400 text-xs">尚未有人閱讀</p> : (
-                        <div className="flex flex-wrap gap-2">
-                            {readBy.map(r => {
-                                const isToday = new Date(r.read_at).toDateString() === new Date().toDateString();
-                                return (
-                                    <span key={r.personnel_id} className={`px-3 py-1 rounded-full text-xs font-bold ${isToday ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-400'}`}>
-                                        {r.personnel_name} {isToday ? '' : '(過往)'}
-                                    </span>
-                                )
-                            })}
-                        </div>
-                    )}
+                {/* Read Receipts Section with Confirmation */}
+                <div className="mt-12 space-y-8">
+                    {/* Read List */}
+                    <div className="glass-panel p-8 rounded-3xl bg-white/60">
+                        <h3 className="text-sm font-bold text-stone-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                            已閱讀 ({readBy.length})
+                        </h3>
+                        
+                        {readBy.length === 0 ? (
+                            <p className="text-stone-400 text-xs font-serif text-center py-4">尚未有人閱讀</p>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left text-stone-600">
+                                    <thead className="text-xs text-stone-400 uppercase bg-stone-50 border-b border-stone-100">
+                                        <tr>
+                                            <th className="px-6 py-3 rounded-tl-lg">姓名</th>
+                                            <th className="px-6 py-3">閱讀時間</th>
+                                            <th className="px-6 py-3 text-center">確認</th>
+                                            <th className="px-6 py-3 rounded-tr-lg">確認資訊</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {readBy.map(r => {
+                                            const isToday = new Date(r.read_at).toDateString() === new Date().toDateString();
+                                            return (
+                                                <tr key={r.personnel_id} className="bg-white border-b border-stone-50 hover:bg-stone-50 transition-colors">
+                                                    <td className="px-6 py-4 font-bold text-stone-800">{r.personnel_name}</td>
+                                                    <td className="px-6 py-4 font-mono text-xs text-stone-500">
+                                                        {new Date(r.read_at).toLocaleString()} 
+                                                        {!isToday && <span className="ml-2 text-[10px] text-stone-300">(過往)</span>}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={!!r.is_confirmed} 
+                                                            onChange={(e) => handleConfirmRead(r.personnel_id, e.target.checked)}
+                                                            className="h-5 w-5 rounded border-stone-300 text-pizza-500 focus:ring-pizza-500 cursor-pointer"
+                                                        />
+                                                    </td>
+                                                    <td className="px-6 py-4 text-xs">
+                                                        {r.is_confirmed ? (
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-pizza-600">由 {r.confirmed_by}</span>
+                                                                <span className="text-stone-400 font-mono text-[10px]">{new Date(r.confirmed_at!).toLocaleString()}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-stone-300">-</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Unread List */}
+                    <div className="glass-panel p-8 rounded-3xl bg-white/60 border-l-4 border-red-200">
+                        <h3 className="text-sm font-bold text-stone-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-red-400 rounded-full"></span>
+                            未閱讀 ({unreadPersonnel.length})
+                        </h3>
+                        {unreadPersonnel.length === 0 ? (
+                            <p className="text-stone-400 text-xs font-serif text-center py-4">全員已閱讀</p>
+                        ) : (
+                            <div className="flex flex-wrap gap-3">
+                                {unreadPersonnel.map(p => (
+                                    <div key={p.id} className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-stone-100 shadow-sm">
+                                        <div className="w-2 h-2 rounded-full bg-red-300"></div>
+                                        <span className="text-xs font-bold text-stone-700">{p.name}</span>
+                                        <span className="text-[10px] text-stone-400 border-l border-stone-200 pl-2">{p.jobTitle}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </>
         )}

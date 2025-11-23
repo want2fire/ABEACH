@@ -86,4 +86,7 @@ export interface AnnouncementRead {
     personnel_id: string;
     read_at: string;
     personnel_name?: string; // For display
+    is_confirmed?: boolean;
+    confirmed_by?: string;
+    confirmed_at?: string;
 }
