@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { type TrainingItem, type TagData, type TagColor, type Personnel, type UserRole } from '../types';
 import { TrashIcon } from '../components/icons/TrashIcon';
 import Tag from '../components/Tag';
@@ -87,62 +87,61 @@ const EditTagModal: React.FC<{
   tagToEdit: TagData | null;
   tagType: TagType;
   allTags: TagData[];
-  onSave: (type: TagType, id: string, name: string, color: TagColor, replaceId?: string) => void;
+  onSave: (type: TagType, id: string, name: string, color: string, replaceId?: string) => void;
   onDelete: (type: TagType, val: string) => void;
 }> = ({ isOpen, onClose, tagToEdit, tagType, allTags, onSave, onDelete }) => {
   const [tagName, setTagName] = useState('');
-  const [tagColor, setTagColor] = useState<TagColor>('slate');
+  const [tagColor, setTagColor] = useState<string>('slate');
   const [replacementTag, setReplacementTag] = useState('');
-  
-  // HSL States for custom color
-  const [hue, setHue] = useState(0);
-  const [sat, setSat] = useState(70);
-  const [light, setLight] = useState(50);
-  const [isCustomColor, setIsCustomColor] = useState(false);
+  const [hsl, setHsl] = useState({ h: 0, s: 0, l: 50 });
+  const [showAdvancedColor, setShowAdvancedColor] = useState(false);
 
   useEffect(() => {
     if (tagToEdit) {
       setTagName(tagToEdit.value);
       setTagColor(tagToEdit.color);
       setReplacementTag('');
+      setShowAdvancedColor(tagToEdit.color.startsWith('hsl'));
       
-      // Check if existing color is HSL-like or predefined
-      const predefined = ['slate', 'sky', 'green', 'amber', 'red', 'indigo', 'pink', 'purple'];
-      if (!predefined.includes(tagToEdit.color)) {
-          setIsCustomColor(true);
-          // Simple parse attempt or default
-          const match = tagToEdit.color.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
-          if (match) {
-              setHue(parseInt(match[1]));
-              setSat(parseInt(match[2]));
-              setLight(parseInt(match[3]));
+      // Try parse existing HSL or default
+      if (tagToEdit.color.startsWith('hsl')) {
+          const matches = tagToEdit.color.match(/\d+/g);
+          if (matches && matches.length >= 3) {
+              setHsl({ h: parseInt(matches[0]), s: parseInt(matches[1]), l: parseInt(matches[2]) });
           }
-      } else {
-          setIsCustomColor(false);
       }
     }
   }, [tagToEdit]);
 
   if (!isOpen || !tagToEdit) return null;
 
-  const availableColors: TagColor[] = ['slate', 'sky', 'green', 'amber', 'red', 'indigo', 'pink', 'purple'];
   const replacementOptions = allTags.filter(t => t.id !== tagToEdit.id);
 
   const handleSave = () => {
-    let finalColor = tagColor;
-    if (isCustomColor) {
-        finalColor = `hsl(${hue}, ${sat}%, ${light}%)`;
-    }
-    onSave(tagType, tagToEdit.id, tagName, finalColor, replacementTag);
+    onSave(tagType, tagToEdit.id, tagName, tagColor, replacementTag);
     onClose();
   };
+  
+  const updateHsl = (key: 'h'|'s'|'l', val: number) => {
+      const newHsl = { ...hsl, [key]: val };
+      setHsl(newHsl);
+      setTagColor(`hsl(${newHsl.h}, ${newHsl.s}%, ${newHsl.l}%)`);
+  };
 
-  const handleDelete = () => {
-      onDelete(tagType, tagToEdit.value);
-      onClose();
-  }
-
-  const currentCustomColor = `hsl(${hue}, ${sat}%, ${light}%)`;
+  const presetColors = ['slate', 'sky', 'green', 'amber', 'red', 'indigo', 'pink', 'purple'];
+  const getColorClass = (c: string) => {
+      switch(c) {
+          case 'slate': return 'bg-stone-400';
+          case 'sky': return 'bg-sky-400';
+          case 'green': return 'bg-emerald-400';
+          case 'amber': return 'bg-amber-400';
+          case 'red': return 'bg-red-400';
+          case 'indigo': return 'bg-indigo-400';
+          case 'pink': return 'bg-rose-400';
+          case 'purple': return 'bg-violet-400';
+          default: return 'bg-stone-200';
+      }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex justify-center items-center p-4">
@@ -158,55 +157,42 @@ const EditTagModal: React.FC<{
           
           <div>
             <label className="block text-xs font-bold text-stone-500 uppercase mb-3 tracking-widest">標籤顏色</label>
-            
-            {/* Mode Switcher */}
-            <div className="flex space-x-4 mb-4">
-                <button 
-                    onClick={() => setIsCustomColor(false)} 
-                    className={`text-xs font-bold uppercase pb-1 ${!isCustomColor ? 'border-b-2 border-pizza-500 text-pizza-600' : 'text-stone-400'}`}
-                >
-                    預設主題
-                </button>
-                <button 
-                    onClick={() => setIsCustomColor(true)} 
-                    className={`text-xs font-bold uppercase pb-1 ${isCustomColor ? 'border-b-2 border-pizza-500 text-pizza-600' : 'text-stone-400'}`}
-                >
-                    自定義顏色 (HSL)
+            <div className="flex flex-wrap gap-3 mb-4">
+                {presetColors.map(c => (
+                    <button 
+                        key={c} 
+                        onClick={() => { setTagColor(c); setShowAdvancedColor(false); }}
+                        className={`w-8 h-8 rounded-full transition-all ${getColorClass(c)} ${tagColor === c ? 'ring-4 ring-stone-200 scale-110' : 'hover:scale-105'}`}
+                    />
+                ))}
+                <button onClick={() => setShowAdvancedColor(!showAdvancedColor)} className="w-8 h-8 rounded-full bg-white border border-stone-300 flex items-center justify-center text-stone-400 hover:text-stone-600 text-xs">
+                    +
                 </button>
             </div>
 
-            {!isCustomColor ? (
-                <div className="flex flex-wrap gap-4">
-                {availableColors.map(color => (
-                    <button 
-                        key={color} 
-                        onClick={() => setTagColor(color)} 
-                        className={`h-8 w-8 rounded-full flex items-center justify-center transition-transform hover:scale-110 ${tagColor === color ? 'ring-2 ring-offset-2 ring-offset-white ring-stone-400' : 'opacity-60 hover:opacity-100'}`}
-                    >
-                    <Tag color={color} className="w-6 h-6 rounded-full block border-0">&nbsp;</Tag>
-                    </button>
-                ))}
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full shadow-inner border border-stone-200" style={{ backgroundColor: currentCustomColor }}></div>
-                        <span className="text-xs font-mono text-stone-500">{currentCustomColor}</span>
+            {showAdvancedColor && (
+                <div className="space-y-3 bg-stone-50 p-4 rounded-xl animate-fade-in">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold w-8">H</span>
+                        <input type="range" min="0" max="360" value={hsl.h} onChange={e => updateHsl('h', parseInt(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                        <span className="text-xs w-8 text-right">{hsl.h}</span>
                     </div>
-                    <div>
-                        <label className="text-[10px] font-bold text-stone-400 uppercase">Hue (色相) {hue}</label>
-                        <input type="range" min="0" max="360" value={hue} onChange={(e) => setHue(parseInt(e.target.value))} className="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer" />
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold w-8">S</span>
+                        <input type="range" min="0" max="100" value={hsl.s} onChange={e => updateHsl('s', parseInt(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                        <span className="text-xs w-8 text-right">{hsl.s}%</span>
                     </div>
-                    <div>
-                        <label className="text-[10px] font-bold text-stone-400 uppercase">Saturation (飽和度) {sat}%</label>
-                        <input type="range" min="0" max="100" value={sat} onChange={(e) => setSat(parseInt(e.target.value))} className="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer" />
-                    </div>
-                    <div>
-                        <label className="text-[10px] font-bold text-stone-400 uppercase">Lightness (亮度) {light}%</label>
-                        <input type="range" min="0" max="100" value={light} onChange={(e) => setLight(parseInt(e.target.value))} className="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer" />
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold w-8">L</span>
+                        <input type="range" min="0" max="100" value={hsl.l} onChange={e => updateHsl('l', parseInt(e.target.value))} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                        <span className="text-xs w-8 text-right">{hsl.l}%</span>
                     </div>
                 </div>
             )}
+            
+            <div className="mt-4 flex justify-center">
+                <Tag color={tagColor} className="px-6 py-2 text-sm">{tagName || '預覽樣式'}</Tag>
+            </div>
           </div>
 
           {replacementOptions.length > 0 && (
@@ -219,14 +205,26 @@ const EditTagModal: React.FC<{
             </div>
           )}
         </div>
+        
         <div className="p-8 pt-0 flex justify-between items-center">
-          <button onClick={handleDelete} className="text-red-500 hover:text-red-700 text-xs font-bold uppercase flex items-center gap-1">
-              <TrashIcon className="w-4 h-4" /> 刪除標籤
-          </button>
-          <div className="flex space-x-3">
+           <button 
+                onClick={() => {
+                    // Custom modal instead of window.confirm for better UX
+                    const confirmed = window.confirm(`確定要刪除標籤「${tagToEdit.value}」嗎？\n此操作無法復原。`);
+                    if (confirmed) {
+                        onDelete(tagType, tagToEdit.value);
+                        onClose();
+                    }
+                }}
+                className="text-red-500 hover:text-red-700 text-xs font-bold uppercase flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-red-50 transition-colors"
+           >
+               <TrashIcon className="w-4 h-4"/> 刪除標籤
+           </button>
+           
+           <div className="flex space-x-3">
             <button onClick={onClose} className="px-6 py-3 rounded-full text-stone-500 hover:bg-stone-100 transition-colors text-xs font-bold uppercase">取消</button>
             <button onClick={handleSave} className="texture-grain px-8 py-3 rounded-full bg-palm-500 text-white hover:bg-palm-600 shadow-lg font-bold text-xs uppercase tracking-widest">儲存變更</button>
-          </div>
+           </div>
         </div>
       </div>
     </div>
@@ -249,15 +247,13 @@ const TagManager: React.FC<{
     {tags.length > 0 ? (
       <div className="flex flex-wrap gap-3">
         {tags.map(tag => (
-          <span key={tag.id} className="group relative inline-flex">
-            <Tag 
-                color={tag.color} 
-                className="px-4 py-1.5"
-                onClick={canEdit ? () => onEdit(tag, tagType) : undefined}
-            >
-                {tag.value}
-            </Tag>
-          </span>
+          <button 
+            key={tag.id} 
+            onClick={() => canEdit && onEdit(tag, tagType)}
+            className={`group relative inline-flex transition-transform ${canEdit ? 'hover:scale-105 cursor-pointer' : 'cursor-default'}`}
+          >
+            <Tag color={tag.color} className="px-4 py-1.5 text-xs">{tag.value}</Tag>
+          </button>
         ))}
       </div>
     ) : (
@@ -297,7 +293,7 @@ interface TrainingItemsPageProps {
   onDeleteItem: (id: string) => void;
   onDeleteSelected: (ids: Set<string>) => void;
   onDeleteTag: (type: TagType, val: string) => void;
-  onEditTag: (type: TagType, id: string, name: string, color: TagColor, replaceId?: string) => void;
+  onEditTag: (type: TagType, id: string, name: string, color: string, replaceId?: string) => void;
   onImportItems: (data: any[][]) => void;
   onAssignItemsToPersonnel: (itemIds: Set<string>, personnelIds: Set<string>) => void;
 }
@@ -435,18 +431,19 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
         onAssign={(pIds) => { onAssignItemsToPersonnel(selectedItems, pIds); setSelectedItems(new Set()); }}
         personnelList={personnelList}
       />
-      <EditTagModal
-        isOpen={!!tagToEdit}
-        onClose={() => setTagToEdit(null)}
-        tagToEdit={tagToEdit?.tag || null}
-        tagType={tagToEdit?.type || 'workArea'}
+      
+      <EditTagModal 
+        isOpen={!!tagToEdit} 
+        onClose={() => setTagToEdit(null)} 
+        tagToEdit={tagToEdit?.tag || null} 
+        tagType={tagToEdit?.type || 'workArea'} 
         allTags={tagToEdit ? allTagsMap[tagToEdit.type] : []}
         onSave={onEditTag}
         onDelete={onDeleteTag}
       />
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
-        <div className="flex flex-col items-start">
+        <div>
             <h1 className="text-4xl md:text-5xl font-playfair text-left font-bold text-stone-900 mb-2">學習任務</h1>
             <p className="text-stone-500 text-sm font-bold tracking-widest uppercase text-left">課程標準與教材管理</p>
         </div>
@@ -572,15 +569,19 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
                               </div>
                           </td>
                       )}
-                      <td className="px-6 py-4 font-bold text-stone-800 group-hover:text-pizza-600 text-base whitespace-nowrap align-middle">{item.name}</td>
+                      <td className="px-6 py-4 align-middle">
+                          <Link to={`/training-items/${item.id}`} className="font-bold text-stone-800 hover:text-pizza-600 text-base whitespace-nowrap border-b border-transparent hover:border-pizza-600 transition-all">
+                              {item.name}
+                          </Link>
+                      </td>
                       <td className="px-6 py-4 align-middle"><Tag color={workAreaTags.find(t=>t.value===item.workArea)?.color || 'red'}>{item.workArea}</Tag></td>
                       <td className="px-6 py-4 hidden md:table-cell align-middle"><Tag color={typeTags.find(t=>t.value===item.typeTag)?.color || 'red'}>{item.typeTag}</Tag></td>
                       <td className="px-6 py-4 align-middle"><Tag color={chapterTags.find(t=>t.value===item.chapter)?.color || 'red'}>{item.chapter}</Tag></td>
                       
                       {canManage && (
                           <td className="px-6 py-4 text-right space-x-3 hidden md:table-cell align-middle">
-                            <button onClick={() => handleStartEdit(item)} className="texture-grain text-stone-400 hover:text-stone-800 font-bold text-xs uppercase">編輯</button>
-                            <button onClick={() => onDeleteItem(item.id)} className="texture-grain text-stone-400 hover:text-red-500"><TrashIcon className="w-4 h-4 inline" /></button>
+                            <button onClick={() => handleStartEdit(item)} className="text-stone-400 hover:text-stone-800 font-bold text-xs uppercase">編輯</button>
+                            <button onClick={() => onDeleteItem(item.id)} className="text-stone-400 hover:text-red-500"><TrashIcon className="w-4 h-4 inline" /></button>
                           </td>
                       )}
                     </tr>

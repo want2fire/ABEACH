@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { type Personnel, type TrainingItem, type TagData, type UserRole } from '../types';
@@ -21,17 +20,6 @@ const getNextItemToLearn = (person: Personnel, trainingItems: TrainingItem[]): s
       .sort((a, b) => a.chapter.localeCompare(b.chapter, undefined, {numeric: true}) || a.name.localeCompare(b.name));
 
     return uncompletedItems.length > 0 ? uncompletedItems[0].name : '全數完成';
-};
-
-const getJobTitleColor = (title: string): string => {
-    switch(title) {
-        case '外場DUTY': return '#552583'; // Lakers Purple
-        case '內場DUTY': return '#005A9C'; // Dodgers Blue
-        case 'A TEAM': return '#FFD700'; // Gold
-        case '管理員': return '#EF4444'; // Red-500
-        case '一般員工': return '#10B981'; // Emerald-500
-        default: return 'slate';
-    }
 };
 
 const PersonnelCard: React.FC<{
@@ -95,6 +83,15 @@ const PersonnelCard: React.FC<{
                              <option value="管理員">管理員</option>
                         </select>
                     </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] uppercase text-stone-500 font-bold">站區</label>
+                        <select name="station" value={editedPerson.station} onChange={handleInputChange} className="glass-input w-full px-3 py-2 rounded-lg">
+                             <option value="全體">全體</option>
+                             <option value="內場">內場</option>
+                             <option value="吧台">吧台</option>
+                             <option value="外場">外場</option>
+                        </select>
+                    </div>
                     <input type="date" name="dob" value={editedPerson.dob} onChange={handleInputChange} className="glass-input w-full px-3 py-2 rounded-lg" />
                     <input type="tel" name="phone" value={editedPerson.phone} onChange={handleInputChange} placeholder="電話" className="glass-input w-full px-3 py-2 rounded-lg" />
                     
@@ -112,13 +109,13 @@ const PersonnelCard: React.FC<{
     return (
         <div className="glass-card relative group rounded-3xl p-6 flex flex-col h-full border border-white hover:border-pizza-400 bg-white/60">
             
-            {/* Action buttons visible without hover for tablet support, but styled elegantly */}
             {canEdit && (
+                // Actions accessible
                 <div className="absolute top-4 right-4 flex space-x-2 z-20">
-                    <button onClick={() => setIsEditing(true)} className="texture-grain p-2 rounded-full bg-white text-stone-400 hover:text-pizza-500 hover:bg-stone-50 transition-colors border border-stone-200 shadow-sm">
+                    <button onClick={() => setIsEditing(true)} className="p-2 rounded-full bg-white text-stone-500 hover:text-pizza-500 hover:bg-stone-50 transition-colors border border-stone-200 shadow-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
                     </button>
-                    <button onClick={() => onDelete(person.id)} className="texture-grain p-2 rounded-full bg-white text-stone-400 hover:text-red-500 hover:bg-stone-50 transition-colors border border-stone-200 shadow-sm">
+                    <button onClick={() => onDelete(person.id)} className="p-2 rounded-full bg-white text-stone-500 hover:text-red-500 hover:bg-stone-50 transition-colors border border-stone-200 shadow-sm">
                         <TrashIcon className="w-3 h-3" />
                     </button>
                 </div>
@@ -131,9 +128,11 @@ const PersonnelCard: React.FC<{
                     </h3>
                 </Link>
                 <div className="flex flex-wrap gap-2 mt-4">
-                    {/* Apply specific colors for Job Titles */}
-                    <Tag color={getJobTitleColor(person.jobTitle as string)}>{person.jobTitle}</Tag>
+                    <Tag color={jobTitleTags.find(t=>t.value===person.jobTitle)?.color || 'red'}>{person.jobTitle}</Tag>
                     <Tag color={person.gender === '男性' ? 'indigo' : person.gender === '女性' ? 'pink' : 'purple'}>{person.gender}</Tag>
+                    {person.station && person.station !== '全體' && (
+                        <Tag color="slate">{person.station}</Tag>
+                    )}
                 </div>
             </div>
 
@@ -179,6 +178,7 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
   const [newDob, setNewDob] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newJobTitle, setNewJobTitle] = useState('一般員工');
+  const [newStation, setNewStation] = useState('全體');
   const [newAccessCode, setNewAccessCode] = useState('');
 
   const canManage = ['admin', 'duty'].includes(userRole);
@@ -194,6 +194,7 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
           dob: newDob, 
           phone: newPhone, 
           jobTitle: newJobTitle,
+          station: newStation,
           access_code: code
       });
       
@@ -202,6 +203,7 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
       setNewDob('');
       setNewPhone('');
       setNewJobTitle('一般員工');
+      setNewStation('全體');
       setNewAccessCode('');
       setIsFormVisible(false);
     }
@@ -216,12 +218,10 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
     
     return (
         <div className={`mt-16 ${opacityClass}`}>
-            <div className="flex flex-col items-start mb-8 gap-2">
-                <div className="flex items-center gap-4 w-full">
-                    <h2 className="text-3xl font-serif text-stone-800">{title}</h2>
-                    <span className="w-8 h-8 flex items-center justify-center rounded-full bg-pizza-500 text-white text-xs font-bold">{personnel.length}</span>
-                    <div className="h-px flex-grow bg-gradient-to-r from-stone-300 to-transparent"></div>
-                </div>
+            <div className="flex items-center gap-6 mb-8">
+                <h2 className="text-3xl font-serif text-stone-800">{title}</h2>
+                <span className="w-8 h-8 flex items-center justify-center rounded-full bg-pizza-500 text-white text-xs font-bold">{personnel.length}</span>
+                <div className="h-px flex-grow bg-gradient-to-r from-stone-300 to-transparent"></div>
             </div>
             
             {sortedPersonnel.length > 0 ? (
@@ -258,7 +258,7 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
       />
       
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
-        <div className="flex flex-col items-start">
+        <div>
             <h1 className="text-4xl md:text-5xl font-playfair text-left font-bold text-stone-900 mb-2">夥伴名單</h1>
             <p className="text-stone-500 text-sm font-bold tracking-widest uppercase text-left">管理您的團隊與進度</p>
         </div>
@@ -304,6 +304,14 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
                     <option value="外場DUTY">外場DUTY</option>
                     <option value="管理員">管理員</option>
                 </select>
+            </div>
+            <div>
+                 <select value={newStation} onChange={e => setNewStation(e.target.value)} className="glass-input w-full px-6 py-4 rounded-xl" required>
+                    <option value="全體">全體</option>
+                    <option value="內場">內場</option>
+                    <option value="吧台">吧台</option>
+                    <option value="外場">外場</option>
+                 </select>
             </div>
             <div>
                 <input type="text" value={newAccessCode} onChange={e => setNewAccessCode(e.target.value)} placeholder="登入代碼 (身分證末四碼)" className="glass-input w-full px-6 py-4 rounded-xl" maxLength={4} />
