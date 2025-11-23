@@ -25,6 +25,15 @@ interface AnnouncementWithStatus extends Announcement {
     is_confirmed?: boolean;
 }
 
+// Helper to check if date is today
+const isCreatedToday = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+           date.getMonth() === today.getMonth() &&
+           date.getFullYear() === today.getFullYear();
+};
+
 const HomePage: React.FC<HomePageProps> = ({ user }) => {
     const [quoteIndex, setQuoteIndex] = useState(0);
     const [activeTab, setActiveTab] = useState<TabType>('today');
@@ -150,10 +159,25 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                     }
                 });
 
-                // Sort: Unconfirmed first, then Confirmed
+                // Sorting Logic:
+                // 1. Unconfirmed First
+                // 2. New (Created Today) First
+                // 3. Start Date (Newest First)
                 const sorter = (a: AnnouncementWithStatus, b: AnnouncementWithStatus) => {
-                    if (a.is_confirmed === b.is_confirmed) return 0;
-                    return a.is_confirmed ? 1 : -1;
+                    // Priority 1: Unconfirmed at top
+                    if (a.is_confirmed !== b.is_confirmed) {
+                        return a.is_confirmed ? 1 : -1;
+                    }
+                    
+                    // Priority 2: Created Today (NEW!) at top (only if confirmation status is same)
+                    const isANew = isCreatedToday(a.created_at);
+                    const isBNew = isCreatedToday(b.created_at);
+                    if (isANew !== isBNew) {
+                        return isANew ? -1 : 1;
+                    }
+
+                    // Priority 3: Start Date
+                    return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
                 };
 
                 setTodayAnnos(todayList.sort(sorter));
@@ -223,7 +247,14 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                                         <div className="flex items-center justify-between p-3 rounded-xl hover:bg-stone-50 transition-colors border border-transparent hover:border-stone-100">
                                             <div className="flex items-center gap-4 overflow-hidden">
                                                 <span className={`shrink-0 w-2 h-2 rounded-full ${anno.category === '營運' ? 'bg-blue-400' : anno.category === '包場' ? 'bg-purple-400' : 'bg-pizza-500'}`}></span>
-                                                <span className={`text-lg font-bold text-stone-700 truncate group-hover:text-pizza-600 transition-colors ${anno.is_confirmed ? 'line-through decoration-stone-300' : ''}`}>{anno.title}</span>
+                                                
+                                                <div className="flex items-center gap-2 overflow-hidden">
+                                                    {isCreatedToday(anno.created_at) && (
+                                                        <span className="animate-bounce px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full shadow-sm whitespace-nowrap">NEW!</span>
+                                                    )}
+                                                    <span className={`text-lg font-bold text-stone-700 truncate group-hover:text-pizza-600 transition-colors ${anno.is_confirmed ? 'line-through decoration-stone-300' : ''}`}>{anno.title}</span>
+                                                </div>
+
                                                 <span className="px-2 py-0.5 bg-stone-100 text-stone-500 text-[10px] font-bold rounded hidden md:inline-block whitespace-nowrap">{anno.category}</span>
                                                 {anno.is_confirmed && (
                                                     <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded whitespace-nowrap">已確認</span>

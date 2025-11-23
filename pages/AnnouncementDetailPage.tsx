@@ -137,6 +137,27 @@ const BlockRenderer: React.FC<{
   }
 };
 
+// Calculate time taken to read
+const calculateTimeTaken = (start: string, end: string) => {
+    const s = new Date(start).getTime();
+    const e = new Date(end).getTime();
+    const diff = e - s;
+    if (diff < 0) return '-';
+    
+    const seconds = Math.floor((diff / 1000) % 60);
+    const minutes = Math.floor((diff / (1000 * 60)) % 60);
+    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    const parts = [];
+    if (days > 0) parts.push(`${days}天`);
+    if (hours > 0) parts.push(`${hours}小時`);
+    if (minutes > 0) parts.push(`${minutes}分`);
+    parts.push(`${seconds}秒`);
+    
+    return parts.join(' ');
+};
+
 const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; userName?: string }> = ({ userRole, userId, userName }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -147,8 +168,8 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [confirmState, setConfirmState] = useState<{ message: string; onConfirm: () => void } | null>(null);
   
-  const [readBy, setReadBy] = useState<AnnouncementRead[]>([]);
-  const [unreadPersonnel, setUnreadPersonnel] = useState<Personnel[]>([]);
+  // Combined List
+  const [targetPersonnelList, setTargetPersonnelList] = useState<Array<Personnel & { readRecord?: AnnouncementRead }>>([]);
   
   // Settings for Admin
   const [targetRoles, setTargetRoles] = useState<string[]>([]);
@@ -160,7 +181,7 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
   const [stationTags, setStationTags] = useState<TagData[]>([]);
   
   // Cycle Logic
-  const [selectedWeekDays, setSelectedWeekDays] = useState<number[]>([]); // 1=Mon, ..., 6=Sat, 0=Sun
+  const [selectedWeekDays, setSelectedWeekDays] = useState<number[]>([]);
   const [category, setCategory] = useState<string>('');
   const [dates, setDates] = useState<{start: string, end: string}>({start: '', end: ''});
   const [isPermanent, setIsPermanent] = useState(false);
@@ -220,7 +241,6 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
               setSelectedWeekDays(daysStr.split(',').map(Number));
           }
       } else {
-          // If 'daily' or 'fixed', just clear weekdays
           setSelectedWeekDays([]);
       }
 
@@ -243,24 +263,14 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
             .select('*, personnel:personnel_id(name)')
             .eq('announcement_id', id);
             
-          if (reads) {
-              setReadBy(reads.map((r: any) => ({
-                  announcement_id: r.announcement_id,
-                  personnel_id: r.personnel_id,
-                  read_at: r.read_at,
-                  personnel_name: r.personnel?.name,
-                  is_confirmed: r.is_confirmed,
-                  confirmed_by: r.confirmed_by,
-                  confirmed_at: r.confirmed_at
-              })));
-          }
-
-          // Calculate Unread
+          // Fetch all active personnel
           const { data: allPersonnel } = await supabase.from('personnel').select('*').eq('status', '在職');
+          
           if (allPersonnel) {
-              const readIds = new Set(reads?.map((r: any) => r.personnel_id) || []);
-              const unread = (allPersonnel as Personnel[]).filter(p => {
-                  // Filter based on targeting logic
+              const readMap = new Map(reads?.map((r: any) => [r.personnel_id, r]) || []);
+              
+              const relevantPersonnel = (allPersonnel as Personnel[]).filter(p => {
+                  // Check targets
                   const roleMatch = anno.target_roles?.some((r: string) => {
                       const rTrimmed = r.trim();
                       if (rTrimmed === '一般員工') return true;
@@ -275,10 +285,21 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
                       if (p.station === sTrimmed) return true;
                       return false;
                   });
-                  
-                  return roleMatch && stationMatch && !readIds.has(p.id);
+                  return roleMatch && stationMatch;
+              }).map(p => ({
+                  ...p,
+                  readRecord: readMap.get(p.id)
+              }));
+
+              // Sort: Unread first, then Read
+              relevantPersonnel.sort((a, b) => {
+                  const aRead = !!a.readRecord;
+                  const bRead = !!b.readRecord;
+                  if (aRead === bRead) return a.name.localeCompare(b.name);
+                  return aRead ? 1 : -1;
               });
-              setUnreadPersonnel(unread);
+
+              setTargetPersonnelList(relevantPersonnel);
           }
 
       } else {
@@ -325,12 +346,10 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
       if (existing) {
           const readDate = new Date(existing.read_at);
           const today = new Date();
-          // If last read was not today, assume new cycle/new attention needed -> reset confirmation
           if (readDate.toDateString() !== today.toDateString()) {
               shouldResetConfirmation = true;
           }
       } else {
-          // First time reading, ensure default false
           shouldResetConfirmation = true; 
       }
 
@@ -340,8 +359,6 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
           read_at: nowStr
       };
       
-      // Only force false if it's a new read/new cycle. 
-      // If user just refreshed page on same day, don't wipe admin's confirmation.
       if (shouldResetConfirmation) {
           payload.is_confirmed = false;
           payload.confirmed_by = null;
@@ -355,11 +372,20 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
       const now = new Date().toISOString();
       
       // Optimistic Update
-      setReadBy(prev => prev.map(r => 
-          r.personnel_id === personnelId 
-          ? { ...r, is_confirmed: isConfirmed, confirmed_by: isConfirmed ? userName : undefined, confirmed_at: isConfirmed ? now : undefined }
-          : r
-      ));
+      setTargetPersonnelList(prev => prev.map(p => {
+          if (p.id === personnelId && p.readRecord) {
+              return {
+                  ...p,
+                  readRecord: {
+                      ...p.readRecord,
+                      is_confirmed: isConfirmed,
+                      confirmed_by: isConfirmed ? userName : undefined,
+                      confirmed_at: isConfirmed ? now : undefined
+                  }
+              };
+          }
+          return p;
+      }));
 
       const { error } = await supabase.from('announcement_reads').update({
           is_confirmed: isConfirmed,
@@ -683,49 +709,73 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
 
                 {/* Read Receipts Section with Confirmation */}
                 <div className="mt-12 space-y-8">
-                    {/* Read List */}
+                    {/* Combined Relevant List */}
                     <div className="glass-panel p-8 rounded-3xl bg-white/60">
                         <h3 className="text-sm font-bold text-stone-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                            已閱讀 ({readBy.length})
+                            <span className="w-2 h-2 bg-stone-800 rounded-full"></span>
+                            相關人員 ({targetPersonnelList.length})
                         </h3>
                         
-                        {readBy.length === 0 ? (
-                            <p className="text-stone-400 text-xs font-serif text-center py-4">尚未有人閱讀</p>
+                        {targetPersonnelList.length === 0 ? (
+                            <p className="text-stone-400 text-xs font-serif text-center py-4">無相關人員</p>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left text-stone-600">
                                     <thead className="text-xs text-stone-400 uppercase bg-stone-50 border-b border-stone-100">
                                         <tr>
                                             <th className="px-6 py-3 rounded-tl-lg">姓名</th>
+                                            <th className="px-6 py-3">職稱</th>
                                             <th className="px-6 py-3">閱讀時間</th>
+                                            <th className="px-6 py-3">歷時</th>
                                             <th className="px-6 py-3 text-center">確認</th>
                                             <th className="px-6 py-3 rounded-tr-lg">確認資訊</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {readBy.map(r => {
-                                            const isToday = new Date(r.read_at).toDateString() === new Date().toDateString();
+                                        {targetPersonnelList.map(p => {
+                                            const isRead = !!p.readRecord;
+                                            const isConfirmed = !!p.readRecord?.is_confirmed;
+                                            
+                                            let rowBgClass = 'bg-red-50 hover:bg-red-100';
+                                            if (isConfirmed) {
+                                                rowBgClass = 'bg-blue-50 hover:bg-blue-100';
+                                            } else if (isRead) {
+                                                rowBgClass = 'bg-emerald-50 hover:bg-emerald-100';
+                                            }
+
+                                            const createdDate = announcement?.created_at || announcement?.start_date || '';
+                                            const readDate = p.readRecord?.read_at;
+                                            const timeTaken = (isRead && readDate && createdDate) 
+                                                ? calculateTimeTaken(createdDate, readDate) 
+                                                : '-';
+
                                             return (
-                                                <tr key={r.personnel_id} className="bg-white border-b border-stone-50 hover:bg-stone-50 transition-colors">
-                                                    <td className="px-6 py-4 font-bold text-stone-800">{r.personnel_name}</td>
+                                                <tr key={p.id} className={`${rowBgClass} border-b border-white/50 transition-colors`}>
+                                                    <td className="px-6 py-4 font-bold text-stone-800">{p.name}</td>
+                                                    <td className="px-6 py-4 text-xs text-stone-500">{p.jobTitle}</td>
                                                     <td className="px-6 py-4 font-mono text-xs text-stone-500">
-                                                        {new Date(r.read_at).toLocaleString()} 
-                                                        {!isToday && <span className="ml-2 text-[10px] text-stone-300">(過往)</span>}
+                                                        {isRead ? new Date(readDate!).toLocaleString() : '-'}
+                                                    </td>
+                                                    <td className="px-6 py-4 font-mono text-xs text-stone-500">
+                                                        {timeTaken}
                                                     </td>
                                                     <td className="px-6 py-4 text-center">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            checked={!!r.is_confirmed} 
-                                                            onChange={(e) => handleConfirmRead(r.personnel_id, e.target.checked)}
-                                                            className="h-5 w-5 rounded border-stone-300 text-pizza-500 focus:ring-pizza-500 cursor-pointer"
-                                                        />
+                                                        {isRead ? (
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={!!p.readRecord?.is_confirmed} 
+                                                                onChange={(e) => handleConfirmRead(p.id, e.target.checked)}
+                                                                className="h-5 w-5 rounded border-stone-300 text-pizza-500 focus:ring-pizza-500 cursor-pointer"
+                                                            />
+                                                        ) : (
+                                                            <span className="text-stone-300">-</span>
+                                                        )}
                                                     </td>
                                                     <td className="px-6 py-4 text-xs">
-                                                        {r.is_confirmed ? (
+                                                        {p.readRecord?.is_confirmed ? (
                                                             <div className="flex flex-col">
-                                                                <span className="font-bold text-pizza-600">由 {r.confirmed_by}</span>
-                                                                <span className="text-stone-400 font-mono text-[10px]">{new Date(r.confirmed_at!).toLocaleString()}</span>
+                                                                <span className="font-bold text-pizza-600">由 {p.readRecord.confirmed_by}</span>
+                                                                <span className="text-stone-400 font-mono text-[10px]">{new Date(p.readRecord.confirmed_at!).toLocaleString()}</span>
                                                             </div>
                                                         ) : (
                                                             <span className="text-stone-300">-</span>
@@ -736,27 +786,6 @@ const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; use
                                         })}
                                     </tbody>
                                 </table>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Unread List */}
-                    <div className="glass-panel p-8 rounded-3xl bg-white/60 border-l-4 border-red-200">
-                        <h3 className="text-sm font-bold text-stone-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <span className="w-2 h-2 bg-red-400 rounded-full"></span>
-                            未閱讀 ({unreadPersonnel.length})
-                        </h3>
-                        {unreadPersonnel.length === 0 ? (
-                            <p className="text-stone-400 text-xs font-serif text-center py-4">全員已閱讀</p>
-                        ) : (
-                            <div className="flex flex-wrap gap-3">
-                                {unreadPersonnel.map(p => (
-                                    <div key={p.id} className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-stone-100 shadow-sm">
-                                        <div className="w-2 h-2 rounded-full bg-red-300"></div>
-                                        <span className="text-xs font-bold text-stone-700">{p.name}</span>
-                                        <span className="text-[10px] text-stone-400 border-l border-stone-200 pl-2">{p.jobTitle}</span>
-                                    </div>
-                                ))}
                             </div>
                         )}
                     </div>

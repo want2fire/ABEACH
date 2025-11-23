@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { type Personnel, type TrainingItem, type TagData, type UserRole } from '../types';
 import ProgressBar from '../components/ProgressBar';
@@ -209,9 +210,17 @@ const PersonnelListPage: React.FC<PersonnelListPageProps> = ({ personnelList, tr
     }
   };
   
-  const activePersonnel = personnelList.filter(p => p.status === '在職');
-  const supportPersonnel = personnelList.filter(p => p.status === '支援');
-  const resignedPersonnel = personnelList.filter(p => p.status === '離職');
+  // Filter personnel based on role visibility
+  const visiblePersonnel = useMemo(() => {
+      if (userRole === 'duty') {
+          return personnelList.filter(p => p.role !== 'admin');
+      }
+      return personnelList;
+  }, [personnelList, userRole]);
+
+  const activePersonnel = visiblePersonnel.filter(p => p.status === '在職');
+  const supportPersonnel = visiblePersonnel.filter(p => p.status === '支援');
+  const resignedPersonnel = visiblePersonnel.filter(p => p.status === '離職');
 
   const renderPersonnelSection = (title: string, personnel: Personnel[], opacityClass: string = '') => {
     const sortedPersonnel = [...personnel].sort((a, b) => a.name.localeCompare(b.name));
