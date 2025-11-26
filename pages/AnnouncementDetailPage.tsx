@@ -808,7 +808,37 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                                 <option value="fixed">指定日期</option>
                             </select>
                             <input type="date" value={editStartDate} onChange={e => setEditStartDate(e.target.value)} className="glass-input px-3 py-2 rounded-lg w-full" />
-                            <input type="date" value={editEndDate} onChange={e => setEditEndDate(e.target.value)} className="glass-input px-3 py-2 rounded-lg w-full" placeholder="結束日期 (選填)" />
+                            
+                            <div className="flex gap-2">
+                                {editEndDate ? (
+                                    <input 
+                                        type="date" 
+                                        value={editEndDate} 
+                                        onChange={e => setEditEndDate(e.target.value)} 
+                                        className="glass-input px-3 py-2 rounded-lg w-full" 
+                                    />
+                                ) : (
+                                    <div className="glass-input px-3 py-2 rounded-lg w-full bg-stone-100 text-stone-400 font-bold flex items-center text-xs">
+                                        永久有效
+                                    </div>
+                                )}
+                                <label className="flex items-center gap-1 cursor-pointer whitespace-nowrap px-3 py-2 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={!editEndDate} 
+                                        onChange={(e) => {
+                                            if (e.target.checked) setEditEndDate('');
+                                            else {
+                                                const d = new Date(editStartDate || new Date());
+                                                d.setDate(d.getDate() + 7);
+                                                setEditEndDate(d.toISOString().split('T')[0]);
+                                            }
+                                        }}
+                                        className="w-4 h-4 rounded border-stone-300 text-pizza-500 focus:ring-pizza-500"
+                                    />
+                                    <span className="text-xs font-bold text-stone-600 select-none">永久</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                     <div>
