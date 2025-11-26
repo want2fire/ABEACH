@@ -159,10 +159,38 @@ const SheetEditor: React.FC<{ data: SheetCell[][], onChange: (data: SheetCell[][
         setShowColorPicker(null);
     };
 
+    // Helper to safely get active cell style
+    const getActiveStyle = (key: keyof React.CSSProperties) => activeCell ? grid[activeCell.r][activeCell.c].style?.[key] : undefined;
+
     const toggleBold = () => {
         if (!activeCell) return;
-        const currentWeight = grid[activeCell.r][activeCell.c].style?.fontWeight;
+        const currentWeight = getActiveStyle('fontWeight');
         handleStyleChange('fontWeight', currentWeight === 'bold' ? 'normal' : 'bold');
+    };
+
+    const toggleItalic = () => {
+        if (!activeCell) return;
+        const currentStyle = getActiveStyle('fontStyle');
+        handleStyleChange('fontStyle', currentStyle === 'italic' ? 'normal' : 'italic');
+    };
+
+    const toggleUnderline = () => {
+        if (!activeCell) return;
+        const currentStyle = getActiveStyle('textDecoration') as string;
+        handleStyleChange('textDecoration', currentStyle?.includes('underline') ? 'none' : 'underline');
+    };
+
+    const toggleStrikethrough = () => {
+        if (!activeCell) return;
+        const currentStyle = getActiveStyle('textDecoration') as string;
+        handleStyleChange('textDecoration', currentStyle?.includes('line-through') ? 'none' : 'line-through');
+    };
+
+    const clearFormatting = () => {
+        if (!activeCell) return;
+        const { r, c } = activeCell;
+        const newGrid = grid.map((row, ri) => ri === r ? row.map((col, ci) => ci === c ? { ...col, style: {} } : col) : row);
+        onChange(newGrid);
     };
 
     const addRow = () => {
@@ -248,7 +276,7 @@ const SheetEditor: React.FC<{ data: SheetCell[][], onChange: (data: SheetCell[][
                             className="p-1.5 rounded hover:bg-stone-100 text-stone-600 font-bold text-xs flex items-center gap-1"
                             title="文字顏色"
                         >
-                            <span className="w-4 h-4 rounded-full border border-stone-200" style={{ background: activeCell ? grid[activeCell.r][activeCell.c].style?.color || '#000' : '#000' }}></span>
+                            <span className="w-4 h-4 rounded-full border border-stone-200" style={{ background: getActiveStyle('color') || '#000', color: getActiveStyle('color') === '#000000' || !getActiveStyle('color') ? 'white' : 'black' }}>A</span>
                             <span className="text-[10px]">▼</span>
                         </button>
                         {showColorPicker === 'text' && (
@@ -277,8 +305,10 @@ const SheetEditor: React.FC<{ data: SheetCell[][], onChange: (data: SheetCell[][
                             className="p-1.5 rounded hover:bg-stone-100 text-stone-600 font-bold text-xs flex items-center gap-1"
                             title="背景顏色"
                         >
-                            <span className="w-4 h-4 rounded border border-stone-200" style={{ background: activeCell ? grid[activeCell.r][activeCell.c].style?.backgroundColor || '#fff' : '#fff' }}></span>
-                            <span className="text-[10px]">▼</span>
+                            <div className="w-4 h-4 rounded border border-stone-200 relative" style={{ background: getActiveStyle('backgroundColor') || '#fff' }}>
+                                <svg className="w-2.5 h-2.5 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-stone-400 mix-blend-difference" fill="currentColor" viewBox="0 0 24 24"><path d="M19.35 10.04C21.95 7.44 21.95 3.22 19.35 0.62C16.75 -1.98 12.53 -1.98 9.93 0.62L0 10.55V20H9.45L19.35 10.04ZM2.07 11.21L9.93 3.35C11.53 1.75 14.13 1.75 15.73 3.35L2.07 17.01V11.21ZM2.07 19.84V19.84H2.07V19.84Z" /></svg>
+                            </div>
+                            <span className="text-[8px]">▼</span>
                         </button>
                         {showColorPicker === 'bg' && (
                             <div className="absolute top-full left-0 mt-1 bg-white border border-stone-200 rounded-lg shadow-xl z-20 p-2 grid grid-cols-4 gap-1 w-32">
@@ -300,23 +330,54 @@ const SheetEditor: React.FC<{ data: SheetCell[][], onChange: (data: SheetCell[][
                     {/* Bold */}
                     <button 
                         onMouseDown={(e) => { e.preventDefault(); toggleBold(); }}
-                        className={`p-1.5 rounded hover:bg-stone-100 font-serif font-bold text-stone-700 ${activeCell && grid[activeCell.r][activeCell.c].style?.fontWeight === 'bold' ? 'bg-stone-200' : ''}`}
+                        className={`p-1.5 rounded hover:bg-stone-100 font-serif font-bold text-stone-700 ${getActiveStyle('fontWeight') === 'bold' ? 'bg-stone-200' : ''}`}
                         title="粗體"
                     >
                         B
+                    </button>
+                    {/* Italic */}
+                    <button 
+                        onMouseDown={(e) => { e.preventDefault(); toggleItalic(); }}
+                        className={`p-1.5 rounded hover:bg-stone-100 font-serif italic text-stone-700 ${getActiveStyle('fontStyle') === 'italic' ? 'bg-stone-200' : ''}`}
+                        title="斜體"
+                    >
+                        I
+                    </button>
+                    {/* Underline */}
+                    <button 
+                        onMouseDown={(e) => { e.preventDefault(); toggleUnderline(); }}
+                        className={`p-1.5 rounded hover:bg-stone-100 font-serif underline text-stone-700 ${(getActiveStyle('textDecoration') as string)?.includes('underline') ? 'bg-stone-200' : ''}`}
+                        title="底線"
+                    >
+                        U
+                    </button>
+                    {/* Strikethrough */}
+                    <button 
+                        onMouseDown={(e) => { e.preventDefault(); toggleStrikethrough(); }}
+                        className={`p-1.5 rounded hover:bg-stone-100 font-serif line-through text-stone-700 ${(getActiveStyle('textDecoration') as string)?.includes('line-through') ? 'bg-stone-200' : ''}`}
+                        title="刪除線"
+                    >
+                        S
                     </button>
 
                     <div className="w-px h-4 bg-stone-300 mx-1"></div>
 
                     {/* Alignment */}
-                    <button onMouseDown={(e) => { e.preventDefault(); handleStyleChange('textAlign', 'left'); }} className="p-1.5 rounded hover:bg-stone-100" title="靠左">
+                    <button onMouseDown={(e) => { e.preventDefault(); handleStyleChange('textAlign', 'left'); }} className={`p-1.5 rounded hover:bg-stone-100 ${getActiveStyle('textAlign') === 'left' ? 'bg-stone-200' : ''}`} title="靠左">
                         <svg className="w-3 h-3 text-stone-600" fill="currentColor" viewBox="0 0 24 24"><path d="M3 18h12v-2H3v2zM3 6v2h18V6H3zm0 7h18v-2H3v2z"/></svg>
                     </button>
-                    <button onMouseDown={(e) => { e.preventDefault(); handleStyleChange('textAlign', 'center'); }} className="p-1.5 rounded hover:bg-stone-100" title="置中">
+                    <button onMouseDown={(e) => { e.preventDefault(); handleStyleChange('textAlign', 'center'); }} className={`p-1.5 rounded hover:bg-stone-100 ${getActiveStyle('textAlign') === 'center' ? 'bg-stone-200' : ''}`} title="置中">
                         <svg className="w-3 h-3 text-stone-600" fill="currentColor" viewBox="0 0 24 24"><path d="M7 15v2h10v-2H7zm-4 6h18v-2H3v2zm0-8h18v-2H3v2zm4-6v2h10V7H7zM3 3v2h18V3H3z"/></svg>
                     </button>
-                    <button onMouseDown={(e) => { e.preventDefault(); handleStyleChange('textAlign', 'right'); }} className="p-1.5 rounded hover:bg-stone-100" title="靠右">
+                    <button onMouseDown={(e) => { e.preventDefault(); handleStyleChange('textAlign', 'right'); }} className={`p-1.5 rounded hover:bg-stone-100 ${getActiveStyle('textAlign') === 'right' ? 'bg-stone-200' : ''}`} title="靠右">
                         <svg className="w-3 h-3 text-stone-600" fill="currentColor" viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+                    </button>
+
+                    <div className="w-px h-4 bg-stone-300 mx-1"></div>
+
+                    {/* Clear Format */}
+                    <button onMouseDown={(e) => { e.preventDefault(); clearFormatting(); }} className="p-1.5 rounded hover:bg-stone-100" title="清除格式">
+                         <svg className="w-3 h-3 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
 
                     <div className="w-px h-4 bg-stone-300 mx-1"></div>
