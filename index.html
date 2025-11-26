@@ -8,13 +8,16 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Expanded Google Fonts Collection -->
+    <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Syne:wght@400;500;600;700;800&family=Roboto:wght@300;400;700&family=Open+Sans:wght@300;400;700&family=Lato:wght@300;400;700&family=Montserrat:wght@300;400;700&family=Oswald:wght@300;400;700&family=Raleway:wght@300;400;700&family=Merriweather:wght@300;400;700&family=Noto+Sans+TC:wght@300;400;700&family=Prompt:wght@300;400;700&family=Poppins:wght@300;400;700&family=Nunito:wght@300;400;700&family=Ubuntu:wght@300;400;700&family=Rubik:wght@300;400;700&family=Work+Sans:wght@300;400;700&family=Fira+Sans:wght@300;400;700&family=Quicksand:wght@300;400;700&family=Karla:wght@300;400;700&family=Inconsolata:wght@300;400;700&family=PT+Serif:wght@400;700&family=Lora:wght@400;700&family=DM+Sans:wght@400;700&display=swap" rel="stylesheet">
+    <!-- React Quill CSS -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
+              sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
               serif: ['Playfair Display', 'serif'],
               syne: ['Syne', 'sans-serif'],
               dela: ['"Dela Gothic One"', 'sans-serif'],
@@ -60,12 +63,15 @@
   <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.5",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.83.0",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs"
+    "react": "https://esm.sh/react@18.2.0",
+    "react/": "https://esm.sh/react@18.2.0/",
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "react-router-dom": "https://esm.sh/react-router-dom@6.22.3?deps=react@18.2.0,react-dom@18.2.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.7",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs",
+    "react-quill": "https://esm.sh/react-quill@2.0.0?external=react,react-dom&deps=react@18.2.0,react-dom@18.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
   }
 }
 </script>
@@ -107,9 +113,9 @@
         border-radius: inherit;
     }
 
-    /* Glassmorphism Utilities - Sunny Beach Style */
+    /* Glassmorphism Utilities */
     .glass-panel {
-        background: rgba(255, 255, 255, 0.75); /* White frosted glass */
+        background: rgba(255, 255, 255, 0.75);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
         border: 1px solid rgba(255, 255, 255, 0.8);
@@ -127,38 +133,108 @@
     
     .glass-card:hover {
         background: rgba(255, 255, 255, 0.9);
-        border-color: rgba(249, 115, 22, 0.3); /* Orange hint */
+        border-color: rgba(249, 115, 22, 0.3);
         transform: translateY(-4px);
         box-shadow: 0 20px 40px -5px rgba(249, 115, 22, 0.15);
     }
 
-    /* Inputs - Clean Light Style */
+    /* Inputs */
     .glass-input {
         background: rgba(255, 255, 255, 0.9) !important;
         border: 1px solid rgba(0, 0, 0, 0.08) !important;
         color: #1c1917 !important;
         font-weight: 500;
     }
-    
     .glass-input:focus {
         background: #ffffff !important;
-        border-color: #f97316 !important; /* Orange border */
+        border-color: #f97316 !important;
         box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1) !important;
     }
 
-    /* Force autofill to be white background with dark text */
-    input:-webkit-autofill,
-    input:-webkit-autofill:hover, 
-    input:-webkit-autofill:focus, 
-    input:-webkit-autofill:active {
-        -webkit-box-shadow: 0 0 0 30px white inset !important;
-        -webkit-text-fill-color: #1c1917 !important;
-        transition: background-color 5000s ease-in-out 0s;
+    /* Quill Editor Customization */
+    .ql-toolbar {
+        border-top-left-radius: 1rem;
+        border-top-right-radius: 1rem;
+        background-color: #f5f5f4;
+        border-color: #e7e5e4 !important;
     }
+    .ql-container {
+        border-bottom-left-radius: 1rem;
+        border-bottom-right-radius: 1rem;
+        background-color: white;
+        font-family: 'Inter', sans-serif !important;
+        border-color: #e7e5e4 !important;
+        min-height: 400px;
+    }
+    .ql-editor {
+        font-size: 1rem;
+        line-height: 1.8;
+        color: #1c1917;
+    }
+    .ql-editor h1 { font-family: 'Playfair Display', serif; font-weight: 700; margin-top: 1.5em; margin-bottom: 0.5em; }
+    .ql-editor h2 { font-family: 'Playfair Display', serif; font-weight: 600; margin-top: 1.2em; margin-bottom: 0.5em; }
     
-    /* Typography Effects */
-    .text-glow {
-        text-shadow: 0 0 20px rgba(251, 146, 60, 0.3);
+    /* Quill Fonts & Sizes in Editor */
+    .ql-font-inter { font-family: 'Inter', sans-serif; }
+    .ql-font-roboto { font-family: 'Roboto', sans-serif; }
+    .ql-font-playfair { font-family: 'Playfair Display', serif; }
+    .ql-font-syne { font-family: 'Syne', sans-serif; }
+    .ql-font-dela { font-family: 'Dela Gothic One', sans-serif; }
+    .ql-font-noto { font-family: 'Noto Sans TC', sans-serif; }
+
+    .ql-size-12px { font-size: 12px; }
+    .ql-size-14px { font-size: 14px; }
+    .ql-size-16px { font-size: 16px; }
+    .ql-size-18px { font-size: 18px; }
+    .ql-size-20px { font-size: 20px; }
+    .ql-size-24px { font-size: 24px; }
+    .ql-size-30px { font-size: 30px; }
+    .ql-size-36px { font-size: 36px; }
+    .ql-size-48px { font-size: 48px; }
+    
+    /* Quill Toolbar Font Previews */
+    .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="inter"]::before,
+    .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="inter"]::before { content: 'Inter'; font-family: 'Inter', sans-serif; }
+    
+    .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="roboto"]::before,
+    .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="roboto"]::before { content: 'Roboto'; font-family: 'Roboto', sans-serif; }
+    
+    .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="playfair"]::before,
+    .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="playfair"]::before { content: 'Playfair'; font-family: 'Playfair Display', serif; }
+    
+    .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="syne"]::before,
+    .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="syne"]::before { content: 'Syne'; font-family: 'Syne', sans-serif; }
+    
+    .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="dela"]::before,
+    .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="dela"]::before { content: 'Dela Gothic'; font-family: 'Dela Gothic One', sans-serif; }
+    
+    .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="noto"]::before,
+    .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="noto"]::before { content: 'Noto Sans TC'; font-family: 'Noto Sans TC', sans-serif; }
+
+    /* Quill Toolbar Size Previews */
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before { content: '12px'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before { content: '14px'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="16px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="16px"]::before { content: '16px'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before { content: '18px'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before { content: '20px'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: '24px'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="30px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="30px"]::before { content: '30px'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before { content: '36px'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="48px"]::before, .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="48px"]::before { content: '48px'; }
+
+    /* Editor Table Styling - Sheet View */
+    .ql-editor table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1em;
+    }
+    .ql-editor td, .ql-editor th {
+        border: 1px solid #cbd5e1; /* Slate-300 */
+        padding: 8px;
+        min-width: 50px;
+    }
+    .ql-editor tr:nth-child(even) {
+        background-color: #f8fafc;
     }
 </style>
 </head>

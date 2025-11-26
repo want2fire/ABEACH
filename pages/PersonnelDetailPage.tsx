@@ -106,7 +106,7 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
 
   const canManage = ['admin', 'duty'].includes(userRole);
 
-  const workDays = useMemo(() => new Set(Object.keys(person?.schedule || {})), [person?.schedule]);
+  const workDays = useMemo(() => new Set(Object.keys((person && person.schedule) || {})), [person && person.schedule]);
 
   useEffect(() => {
       if (person) {
@@ -131,7 +131,10 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
     const unfinishedItems = Object.entries(person.schedule)
         .filter(([date]) => { const d = new Date(date); d.setHours(0,0,0,0); return d < today; })
         .flatMap(([, itemIds]) => itemIds)
-        .filter(itemId => !person.trainingPlan.find(p => p.itemId === itemId)?.completed);
+        .filter(itemId => {
+            const found = person.trainingPlan.find(p => p.itemId === itemId);
+            return !(found && found.completed);
+        });
 
     const sortedScheduledDates = Object.keys(person.schedule).sort();
     const nextWorkdayDate = sortedScheduledDates.find(date => date > todayStr);
@@ -235,7 +238,7 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
     return (
         <ul className="space-y-2">
             {itemIds.map(getItemDetails).filter((i): i is TrainingItem => !!i).map(item => {
-                 const isCompleted = person.trainingPlan.find(p => p.itemId === item.id)?.completed || false;
+                 const isCompleted = (person.trainingPlan.find(p => p.itemId === item.id) || {}).completed || false;
                  return (
                     <li key={item.id} className={`flex items-center p-2 rounded ${isCompleted ? 'text-stone-400 line-through opacity-50' : 'text-stone-700'}`}>
                         <div className={`w-1.5 h-1.5 rounded-full mr-2 ${isCompleted ? 'bg-palm-500' : 'bg-pizza-500'}`}></div>
@@ -272,7 +275,7 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
             <div>
                 <h1 className="text-5xl font-playfair font-bold text-stone-900 mb-4">{person.name}</h1>
                 <div className="flex flex-wrap gap-3">
-                    <Tag color={jobTitleTags.find(t=>t.value === person.jobTitle)?.color || 'sky'}>{person.jobTitle}</Tag>
+                    <Tag color={(jobTitleTags.find(t=>t.value === person.jobTitle) || {}).color || 'sky'}>{person.jobTitle}</Tag>
                     <Tag color="amber">{new Date().getFullYear() - new Date(person.dob).getFullYear()} 歲</Tag>
                     <Tag color="slate">{person.phone}</Tag>
                 </div>
@@ -287,9 +290,9 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
                     </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <input type="text" name="name" value={editedPerson?.name || ''} onChange={handleInputChange} placeholder="姓名" className="glass-input w-full px-4 py-3 rounded-xl" />
-                    <input type="tel" name="phone" value={editedPerson?.phone || ''} onChange={handleInputChange} placeholder="電話" className="glass-input w-full px-4 py-3 rounded-xl" />
-                    <select name="jobTitle" value={editedPerson?.jobTitle || ''} onChange={handleInputChange} className="glass-input w-full px-4 py-3 rounded-xl">
+                    <input type="text" name="name" value={(editedPerson && editedPerson.name) || ''} onChange={handleInputChange} placeholder="姓名" className="glass-input w-full px-4 py-3 rounded-xl" />
+                    <input type="tel" name="phone" value={(editedPerson && editedPerson.phone) || ''} onChange={handleInputChange} placeholder="電話" className="glass-input w-full px-4 py-3 rounded-xl" />
+                    <select name="jobTitle" value={(editedPerson && editedPerson.jobTitle) || ''} onChange={handleInputChange} className="glass-input w-full px-4 py-3 rounded-xl">
                          <option value="一般員工">一般員工</option>
                          <option value="A TEAM">A TEAM</option>
                          <option value="內場DUTY">內場DUTY</option>
@@ -297,14 +300,14 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
                          <option value="管理員">管理員</option>
                     </select>
                     <div className="flex gap-2">
-                        <select name="status" value={editedPerson?.status || '在職'} onChange={handleInputChange} className="glass-input w-1/2 px-4 py-3 rounded-xl">
+                        <select name="status" value={(editedPerson && editedPerson.status) || '在職'} onChange={handleInputChange} className="glass-input w-1/2 px-4 py-3 rounded-xl">
                             <option value="在職">在職</option>
                             <option value="支援">支援</option>
                             <option value="離職">離職</option>
                         </select>
-                        <input type="text" name="access_code" value={editedPerson?.access_code || ''} onChange={handleInputChange} placeholder="登入碼" maxLength={4} className="glass-input w-1/2 px-4 py-3 rounded-xl text-center" />
+                        <input type="text" name="access_code" value={(editedPerson && editedPerson.access_code) || ''} onChange={handleInputChange} placeholder="登入碼" maxLength={4} className="glass-input w-1/2 px-4 py-3 rounded-xl text-center" />
                     </div>
-                    <input type="date" name="dob" value={editedPerson?.dob || ''} onChange={handleInputChange} className="glass-input w-full px-4 py-3 rounded-xl" />
+                    <input type="date" name="dob" value={(editedPerson && editedPerson.dob) || ''} onChange={handleInputChange} className="glass-input w-full px-4 py-3 rounded-xl" />
                 </div>
             </div>
         )}

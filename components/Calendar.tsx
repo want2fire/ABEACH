@@ -190,8 +190,8 @@ const Calendar: React.FC<CalendarProps> = ({
                         cellBase += 'text-stone-300 ';
                     }
                 } else {
-                    const isWorkDay = workDays?.has(dayStr);
-                    const isSelected = selectedDays?.has(dayStr);
+                    const isWorkDay = workDays && workDays.has(dayStr);
+                    const isSelected = selectedDays && selectedDays.has(dayStr);
 
                     if (isScheduling) {
                          if (isSelected) cellBase += 'bg-pizza-500 text-white shadow-lg scale-110 z-10 ';

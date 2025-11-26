@@ -129,7 +129,7 @@ const PersonnelCard: React.FC<{
                     </h3>
                 </Link>
                 <div className="flex flex-wrap gap-2 mt-4">
-                    <Tag color={jobTitleTags.find(t=>t.value===person.jobTitle)?.color || 'red'}>{person.jobTitle}</Tag>
+                    <Tag color={(jobTitleTags.find(t=>t.value===person.jobTitle) || {}).color || 'red'}>{person.jobTitle}</Tag>
                     <Tag color={person.gender === '男性' ? 'indigo' : person.gender === '女性' ? 'pink' : 'purple'}>{person.gender}</Tag>
                     {person.station && person.station !== '全體' && (
                         <Tag color="slate">{person.station}</Tag>

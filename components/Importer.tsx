@@ -63,7 +63,7 @@ const Importer: React.FC<ImporterProps> = ({ isOpen, onClose, onImport, title, c
         const reader = new FileReader();
         reader.onload = (e) => {
           try {
-            const data = e.target?.result;
+            const data = e.target && e.target.result;
             const workbook = XLSX.read(data, { type: 'array', codepage: 65001 });
             const sheetName = workbook.SheetNames[0];
             const sheet = workbook.Sheets[sheetName];

@@ -435,8 +435,8 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
       <EditTagModal 
         isOpen={!!tagToEdit} 
         onClose={() => setTagToEdit(null)} 
-        tagToEdit={tagToEdit?.tag || null} 
-        tagType={tagToEdit?.type || 'workArea'} 
+        tagToEdit={(tagToEdit && tagToEdit.tag) || null} 
+        tagType={(tagToEdit && tagToEdit.type) || 'workArea'} 
         allTags={tagToEdit ? allTagsMap[tagToEdit.type] : []}
         onSave={onEditTag}
         onDelete={onDeleteTag}
@@ -574,9 +574,9 @@ const TrainingItemsPage: React.FC<TrainingItemsPageProps> = ({ items, personnelL
                               {item.name}
                           </Link>
                       </td>
-                      <td className="px-6 py-4 align-middle"><Tag color={workAreaTags.find(t=>t.value===item.workArea)?.color || 'red'}>{item.workArea}</Tag></td>
-                      <td className="px-6 py-4 hidden md:table-cell align-middle"><Tag color={typeTags.find(t=>t.value===item.typeTag)?.color || 'red'}>{item.typeTag}</Tag></td>
-                      <td className="px-6 py-4 align-middle"><Tag color={chapterTags.find(t=>t.value===item.chapter)?.color || 'red'}>{item.chapter}</Tag></td>
+                      <td className="px-6 py-4 align-middle"><Tag color={(workAreaTags.find(t=>t.value===item.workArea) || {}).color || 'red'}>{item.workArea}</Tag></td>
+                      <td className="px-6 py-4 hidden md:table-cell align-middle"><Tag color={(typeTags.find(t=>t.value===item.typeTag) || {}).color || 'red'}>{item.typeTag}</Tag></td>
+                      <td className="px-6 py-4 align-middle"><Tag color={(chapterTags.find(t=>t.value===item.chapter) || {}).color || 'red'}>{item.chapter}</Tag></td>
                       
                       {canManage && (
                           <td className="px-6 py-4 text-right space-x-3 hidden md:table-cell align-middle">

@@ -138,16 +138,16 @@ const App: React.FC = () => {
 
       if (peopleData) {
         const mappedPersonnel: Personnel[] = peopleData.map((p: any) => {
-          const myProgress = progressData
-            ?.filter((prog: any) => prog.personnel_id === p.id)
+          const myProgress = (progressData || [])
+            .filter((prog: any) => prog.personnel_id === p.id)
             .map((prog: any) => ({
               itemId: prog.item_id,
               completed: prog.completed
-            })) || [];
+            }));
 
           const mySchedule: DailySchedule = {};
-          scheduleData
-            ?.filter((s: any) => s.personnel_id === p.id)
+          (scheduleData || [])
+            .filter((s: any) => s.personnel_id === p.id)
             .forEach((s: any) => {
               if (!mySchedule[s.work_date]) {
                 mySchedule[s.work_date] = [];
@@ -372,9 +372,9 @@ const App: React.FC = () => {
         <div className="texture-grain fixed inset-0 z-0 pointer-events-none opacity-20"></div>
 
       {loading ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-50/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-50/90 backdrop-blur-sm">
             {/* THICK ORANGE TEXT ANIMATION */}
-            <div className="text-3xl md:text-5xl font-black text-pizza-500 animate-pulse tracking-[0.2em] font-dela drop-shadow-sm">
+            <div className="text-4xl md:text-6xl font-black text-pizza-500 animate-pulse tracking-[0.2em] font-sans drop-shadow-sm select-none">
                 載入中
             </div>
         </div>

@@ -1,1086 +1,884 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { type Announcement, type SOPBlock, type BlockType, type UserRole, type AnnouncementRead, type TagData, type Personnel } from '../types';
-import Tooltip from '../components/Tooltip';
-import { TrashIcon } from '../components/icons/TrashIcon';
-import { PlusIcon } from '../components/icons/PlusIcon';
-import Calendar from '../components/Calendar';
+import { type Announcement, type SOPBlock, type UserRole, type TagData, type Personnel } from '../types';
+import ReactQuill from 'react-quill';
 
-// Reusing icons from other files for consistency
-interface IconProps extends React.SVGProps<SVGSVGElement> {}
+// --- Custom Font & Size Registration ---
+let Quill: any = null;
+if (ReactQuill && (ReactQuill as any).Quill) {
+    Quill = (ReactQuill as any).Quill;
+} else if ((window as any).Quill) {
+    Quill = (window as any).Quill;
+}
 
-const ChevronUpIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" /></svg>;
-const ChevronDownIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>;
-const ImageIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
-const VideoIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
-const TypeIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" /></svg>;
-const SaveIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>;
-const TableIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M3 14h18m-9-4v8m-7-8v8m14-8v8M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>;
-const DocumentIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>;
-const ToggleIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>;
-const LinkIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>;
-const EyeIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>;
-const EyeSlashIcon: React.FC<IconProps> = ({ className = "w-4 h-4", ...props }) => <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>;
+if (Quill) {
+    const Font = Quill.import('formats/font') as any;
+    Font.whitelist = ['inter', 'roboto', 'playfair', 'syne', 'dela', 'noto'];
+    Quill.register(Font, true);
+    
+    const Size = Quill.import('attributors/style/size');
+    Size.whitelist = ['12px', '14px', '16px', '18px', '20px', '24px', '30px', '36px', '48px'];
+    Quill.register(Size, true);
+}
 
-// --- Link Input Modal ---
-const LinkInputModal: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    onConfirm: (text: string, url: string) => void;
-}> = ({ isOpen, onClose, onConfirm }) => {
-    const [text, setText] = useState('');
-    const [url, setUrl] = useState('');
+// Improved Auto-link Strategy
+const autoLinkHtml = (html: string): string => {
+    if (!html) return '';
+    const container = document.createElement('div');
+    container.innerHTML = html;
 
-    useEffect(() => {
-        if (isOpen) {
-            setText('');
-            setUrl('');
+    const walk = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+    const nodes: Node[] = [];
+    while(walk.nextNode()) nodes.push(walk.currentNode);
+
+    nodes.forEach(node => {
+        if(node.parentElement && ['A', 'SCRIPT', 'STYLE', 'BUTTON', 'TEXTAREA', 'CODE', 'PRE'].includes(node.parentElement.tagName)) return;
+        
+        const text = node.textContent || '';
+        const urlRegex = /((https?:\/\/|www\.)[^\s]+)/g;
+        
+        if(!urlRegex.test(text)) return;
+
+        const fragment = document.createDocumentFragment();
+        let lastIdx = 0;
+        let match;
+        
+        while ((match = urlRegex.exec(text)) !== null) {
+            const before = text.slice(lastIdx, match.index);
+            if(before) fragment.appendChild(document.createTextNode(before));
+            
+            let url = match[0];
+            const href = url.startsWith('www.') ? `https://${url}` : url;
+            
+            const punctuation = /[.,;:!?)]+$/;
+            let suffix = '';
+            const pMatch = url.match(punctuation);
+            if(pMatch) {
+                suffix = pMatch[0];
+                url = url.slice(0, -suffix.length);
+            }
+
+            const a = document.createElement('a');
+            a.href = href.startsWith('www.') ? `https://${url}` : (url.startsWith('http') ? url : `https://${url}`);
+            a.target = '_blank';
+            a.rel = "noopener noreferrer";
+            a.className = "text-pizza-500 underline hover:text-pizza-600 font-medium transition-colors";
+            a.textContent = url;
+            fragment.appendChild(a);
+            
+            if(suffix) fragment.appendChild(document.createTextNode(suffix));
+
+            lastIdx = match.index + match[0].length;
         }
-    }, [isOpen]);
+        
+        const after = text.slice(lastIdx);
+        if(after) fragment.appendChild(document.createTextNode(after));
+        
+        node.parentNode?.replaceChild(fragment, node);
+    });
 
-    if (!isOpen) return null;
+    return container.innerHTML;
+};
+
+const convertBlocksToHtml = (blocks: SOPBlock[]): string => {
+    if (!blocks || blocks.length === 0) return '';
+    
+    // Find RichText block
+    const richTextBlock = blocks.find(b => b.type === 'richtext');
+    if (richTextBlock) return autoLinkHtml(richTextBlock.content);
+
+    // Fallback logic
+    let rawHtml = blocks.filter(b => b.type !== 'table').map(block => {
+        let text = block.content || '';
+        text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #f97316; text-decoration: underline;">$1</a>');
+        
+        switch (block.type) {
+            case 'heading-1': return `<h1>${text}</h1>`;
+            case 'heading-2': return `<h2>${text}</h2>`;
+            case 'heading-3': return `<h3>${text}</h3>`;
+            case 'bullet-list': return `<ul><li>${text}</li></ul>`;
+            case 'number-list': return `<ol><li>${text}</li></ol>`;
+            case 'image': return `<img src="${block.content}" alt="Image" style="max-width: 100%; border-radius: 8px; margin: 10px 0;" />`;
+            case 'video': return `<p><a href="${block.content}" target="_blank">📺 觀看影片</a></p>`;
+            case 'pdf': return `<p><a href="${block.content}" target="_blank">📄 下載 PDF 文件</a></p>`;
+            case 'divider': return `<hr />`;
+            case 'callout': return `<blockquote style="border-left: 4px solid orange; padding-left: 10px; color: #666; background: #fffaf0; padding: 10px;">${text}</blockquote>`;
+            default: return `<p>${text}</p>`;
+        }
+    }).join('');
+
+    return autoLinkHtml(rawHtml);
+};
+
+// Sheet Editor Component
+const SheetEditor: React.FC<{ data: string[][], onChange: (data: string[][]) => void, readOnly?: boolean }> = ({ data, onChange, readOnly }) => {
+    const grid = data.length > 0 ? data : [['', '', ''], ['', '', ''], ['', '', '']];
+
+    const handleCellChange = (r: number, c: number, value: string) => {
+        const newGrid = grid.map((row, ri) => ri === r ? row.map((col, ci) => ci === c ? value : col) : row);
+        onChange(newGrid);
+    };
+
+    const addRow = () => onChange([...grid, Array(grid[0]?.length || 3).fill('')]);
+    const addCol = () => onChange(grid.map(row => [...row, '']));
+    const removeRow = (index: number) => { if(grid.length > 1) onChange(grid.filter((_, i) => i !== index)); };
+    const removeCol = (index: number) => { if(grid[0].length > 1) onChange(grid.map(row => row.filter((_, i) => i !== index))); };
+
+    if (readOnly) {
+        if (grid.every(r => r.every(c => !c.trim()))) return null;
+        return (
+            <div className="mt-8 overflow-x-auto rounded-xl border border-stone-200">
+                <table className="w-full text-sm text-left text-stone-600">
+                    <tbody>
+                        {grid.map((row, ri) => (
+                            <tr key={ri} className="border-b border-stone-100 last:border-0 hover:bg-stone-50">
+                                {row.map((cell, ci) => (
+                                    <td key={ci} className={`px-6 py-4 border-r border-stone-100 last:border-0 ${ri === 0 ? 'font-bold bg-stone-50 text-stone-800' : ''}`}>
+                                        {cell}
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        );
+    }
 
     return (
-        <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-fade-in">
-                <h3 className="text-lg font-bold text-stone-800 mb-4">插入超連結</h3>
-                <div className="space-y-3">
-                    <div>
-                        <label className="block text-xs font-bold text-stone-500 uppercase mb-1">連結文字</label>
-                        <input 
-                            type="text" 
-                            value={text} 
-                            onChange={(e) => setText(e.target.value)} 
-                            className="glass-input w-full px-3 py-2 rounded-lg" 
-                            placeholder="例如：點擊這裡"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-stone-500 uppercase mb-1">網址 (URL)</label>
-                        <input 
-                            type="text" 
-                            value={url} 
-                            onChange={(e) => setUrl(e.target.value)} 
-                            className="glass-input w-full px-3 py-2 rounded-lg" 
-                            placeholder="https://..."
-                        />
-                    </div>
+        <div className="mt-8 p-6 bg-stone-50 rounded-2xl border border-stone-200">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm font-bold text-stone-500 uppercase tracking-widest">附表編輯 (Sheet)</h3>
+                <div className="flex gap-2">
+                    <button onClick={addRow} className="px-3 py-1 bg-white border border-stone-300 rounded text-xs font-bold hover:bg-stone-100">+ 列 (Row)</button>
+                    <button onClick={addCol} className="px-3 py-1 bg-white border border-stone-300 rounded text-xs font-bold hover:bg-stone-100">+ 行 (Col)</button>
                 </div>
-                <div className="flex gap-3 mt-6">
-                    <button onClick={onClose} className="flex-1 py-2 bg-stone-100 rounded-lg text-xs font-bold text-stone-600">取消</button>
-                    <button 
-                        onClick={() => { if (text && url) { onConfirm(text, url); onClose(); } }}
-                        className="flex-1 py-2 bg-pizza-500 text-white rounded-lg text-xs font-bold shadow-md"
-                        disabled={!text || !url}
-                    >
-                        插入連結
-                    </button>
+            </div>
+            <div className="overflow-x-auto p-4">
+                <table className="w-full border-collapse">
+                    <tbody>
+                        {grid.map((row, ri) => (
+                            <tr key={ri}>
+                                {row.map((cell, ci) => (
+                                    <td key={`${ri}-${ci}`} className="border border-stone-300 p-0 min-w-[100px] relative group">
+                                        <input 
+                                            type="text" 
+                                            value={cell} 
+                                            onChange={(e) => handleCellChange(ri, ci, e.target.value)}
+                                            className={`w-full h-full px-3 py-2 outline-none focus:bg-pizza-50 transition-colors ${ri===0 ? 'font-bold bg-stone-100' : 'bg-white'}`}
+                                        />
+                                        {ci === row.length - 1 && grid.length > 1 && (
+                                            <button onClick={() => removeRow(ri)} className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 z-10 hover:scale-110 flex items-center justify-center shadow-md">×</button>
+                                        )}
+                                        {ri === grid.length - 1 && row.length > 1 && (
+                                            <button onClick={() => removeCol(ci)} className="absolute bottom-[-12px] left-1/2 -translate-x-1/2 w-6 h-6 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 z-10 hover:scale-110 flex items-center justify-center shadow-md">×</button>
+                                        )}
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+interface DetailedReadStatus {
+    id: string; // Personnel ID
+    name: string;
+    jobTitle: string;
+    readAt: string | null;
+    isConfirmed: boolean;
+    confirmedAt: string | null;
+    confirmedBy: string | null;
+}
+
+const ReadStatusModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    readList: DetailedReadStatus[];
+    unreadList: DetailedReadStatus[];
+    onVerify: (personnelId: string, isConfirmed: boolean) => void;
+}> = ({ isOpen, onClose, readList, unreadList, onVerify }) => {
+    if (!isOpen) return null;
+
+    const formatDate = (dateStr: string | null) => {
+        if (!dateStr) return '-';
+        return new Date(dateStr).toLocaleString('zh-TW', {
+            month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+    };
+
+    return (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm" onClick={onClose}>
+            <div className="glass-panel bg-white rounded-2xl p-0 max-w-4xl w-full shadow-2xl animate-fade-in border border-stone-100 overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+                <div className="p-6 border-b border-stone-100 flex justify-between items-center bg-stone-50">
+                    <h3 className="text-lg font-bold text-stone-800">閱讀狀態統計</h3>
+                    <button onClick={onClose} className="text-stone-400 hover:text-stone-800 text-2xl">&times;</button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-6">
+                    <div className="space-y-8">
+                        {/* Unread Section */}
+                        <div>
+                            <h4 className="flex items-center gap-2 text-sm font-bold text-stone-500 uppercase tracking-widest mb-4">
+                                <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                未讀人員 ({unreadList.length})
+                            </h4>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {unreadList.map((p) => (
+                                    <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-stone-50 border border-stone-100">
+                                        <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center text-xs font-bold text-stone-600">
+                                            {p.name[0]}
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-bold text-stone-800">{p.name}</div>
+                                            <div className="text-[10px] text-stone-500">{p.jobTitle}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {unreadList.length === 0 && <p className="text-stone-300 text-xs col-span-full">全員已讀</p>}
+                            </div>
+                        </div>
+
+                        {/* Read Section */}
+                        <div>
+                            <h4 className="flex items-center gap-2 text-sm font-bold text-stone-500 uppercase tracking-widest mb-4">
+                                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                已讀人員 ({readList.length})
+                            </h4>
+                            <div className="overflow-x-auto rounded-xl border border-stone-200">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-stone-50 border-b border-stone-200">
+                                        <tr>
+                                            <th className="px-4 py-3 font-bold text-stone-600 text-xs uppercase tracking-wider">姓名/職稱</th>
+                                            <th className="px-4 py-3 font-bold text-stone-600 text-xs uppercase tracking-wider">閱讀時間</th>
+                                            <th className="px-4 py-3 font-bold text-stone-600 text-xs uppercase tracking-wider text-center">主管確認</th>
+                                            <th className="px-4 py-3 font-bold text-stone-600 text-xs uppercase tracking-wider">確認資訊</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-stone-100">
+                                        {readList.map((p) => (
+                                            <tr key={p.id} className="hover:bg-stone-50/50">
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-6 h-6 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-[10px] font-bold">
+                                                            {p.name[0]}
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-bold text-stone-800">{p.name}</div>
+                                                            <div className="text-[10px] text-stone-400">{p.jobTitle}</div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 font-mono text-xs text-stone-600">
+                                                    {formatDate(p.readAt)}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={p.isConfirmed} 
+                                                        onChange={(e) => onVerify(p.id, e.target.checked)}
+                                                        className="w-5 h-5 rounded border-stone-300 text-pizza-500 focus:ring-pizza-500 cursor-pointer"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {p.isConfirmed ? (
+                                                        <div className="text-xs">
+                                                            <div className="font-bold text-stone-700">{p.confirmedBy}</div>
+                                                            <div className="text-stone-400 font-mono text-[10px]">{formatDate(p.confirmedAt)}</div>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-stone-300 text-xs">-</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {readList.length === 0 && (
+                                            <tr>
+                                                <td colSpan={4} className="px-4 py-8 text-center text-stone-400 text-xs">尚無人閱讀</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     );
 };
 
-// --- Helper: Robust Text Parser for Links ---
-const parseRawUrls = (text: string) => {
-    // Regex capturing group used to keep separators in split result
-    const urlRegex = /((?:https?:\/\/|www\.)[^\s\u4e00-\u9fa5]+)/gi;
-    
-    const parts = text.split(urlRegex);
-    
-    return parts.map((part, i) => {
-        if (part.match(/^(https?:\/\/|www\.)/i)) {
-            let href = part;
-            if (part.toLowerCase().startsWith('www.')) {
-                href = 'https://' + part;
-            }
-            
-            // Strip common trailing punctuation
-            const match = href.match(/[.,;!?)]+$/);
-            let suffix = '';
-            if (match) {
-                suffix = match[0];
-                href = href.substring(0, href.length - suffix.length);
-                part = part.substring(0, part.length - suffix.length);
-            }
+const MediaModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onInsert: (url: string) => void;
+}> = ({ isOpen, onClose, onInsert }) => {
+    const [activeTab, setActiveTab] = useState<'upload' | 'url'>('upload');
+    const [url, setUrl] = useState('');
+    const [file, setFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-            return (
-                <React.Fragment key={`link-frag-${i}`}>
-                    <a 
-                        href={href} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-pizza-500 hover:text-pizza-600 hover:underline font-medium break-all cursor-pointer relative z-10"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {part}
-                    </a>
-                    {suffix}
-                </React.Fragment>
-            );
+    useEffect(() => {
+        if (isOpen) {
+            setErrorMsg(null);
+            setFile(null);
+            setUrl('');
+            setUploading(false);
         }
-        return part;
-    });
-};
+    }, [isOpen]);
 
-const parseText = (text: string) => {
-    if (!text) return '';
+    if (!isOpen) return null;
 
-    // Regex to match Markdown links [text](url)
-    const mdLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-    
-    const elements: React.ReactNode[] = [];
-    let lastIndex = 0;
-
-    let match;
-    while ((match = mdLinkRegex.exec(text)) !== null) {
-        // Process text before markdown link for raw URLs
-        if (match.index > lastIndex) {
-            const subText = text.substring(lastIndex, match.index);
-            elements.push(...parseRawUrls(subText));
+    const handleUpload = async () => {
+        setErrorMsg(null);
+        if (!file) return;
+        
+        // 50MB limit check
+        if (file.size > 50 * 1024 * 1024) {
+             setErrorMsg('檔案過大 (超過 50MB)。\n建議壓縮檔案後再試。');
+             return;
         }
 
-        // Push Markdown link
-        elements.push(
-            <a 
-                key={`md-${match.index}`} 
-                href={match[2]} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-pizza-500 hover:text-pizza-600 hover:underline font-bold mx-1 cursor-pointer relative z-10"
-                onClick={(e) => e.stopPropagation()}
-            >
-                {match[1]}
-            </a>
-        );
-
-        lastIndex = mdLinkRegex.lastIndex;
-    }
-
-    // Process remaining text for raw URLs
-    if (lastIndex < text.length) {
-        elements.push(...parseRawUrls(text.substring(lastIndex)));
-    }
-
-    return elements;
-};
-
-// --- Block Renderer Component ---
-const BlockRenderer: React.FC<{
-  block: SOPBlock;
-  isEditing: boolean;
-  onUpdate: (id: string, content: string) => void;
-  onUpdateProps: (id: string, props: any) => void;
-  onConfirmAction: (message: string, action: () => void) => void;
-  indexContext?: number; // For numbered lists
-}> = ({ block, isEditing, onUpdate, onUpdateProps, onConfirmAction, indexContext }) => {
-  
-  const [uploading, setUploading] = useState(false);
-
-  const commonClasses = "w-full bg-transparent outline-none transition-all resize-none border-none p-0 m-0 focus:ring-0 overflow-hidden";
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video' | 'pdf') => {
-      if (!e.target.files || e.target.files.length === 0) return;
-      const file = e.target.files[0];
-      setUploading(true);
-
-      try {
-          const fileExt = file.name.split('.').pop();
-          const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
-          const filePath = `${fileName}`;
-
-          const { error: uploadError } = await supabase.storage
-              .from('documents')
-              .upload(filePath, file);
-
-          if (uploadError) throw uploadError;
-
-          const { data: { publicUrl } } = supabase.storage
-              .from('documents')
-              .getPublicUrl(filePath);
-
-          onUpdate(block.id, publicUrl);
-      } catch (error: any) {
-          alert('上傳失敗：' + error.message);
-      } finally {
-          setUploading(false);
-      }
-  };
-
-  switch (block.type) {
-    case 'heading-1':
-      return isEditing ? (
-        <textarea 
-            value={block.content} 
-            onChange={e => onUpdate(block.id, e.target.value)} 
-            className={`${commonClasses} text-4xl font-playfair font-bold text-stone-900 placeholder-stone-300 mt-6 mb-4`} 
-            placeholder="大標題..." 
-            rows={Math.max(1, block.content.split('\n').length)}
-        />
-      ) : <h1 className="text-4xl font-playfair font-bold text-stone-900 mt-6 mb-4">{block.content}</h1>;
-    
-    case 'heading-2':
-      return isEditing ? (
-        <textarea 
-            value={block.content} 
-            onChange={e => onUpdate(block.id, e.target.value)} 
-            className={`${commonClasses} text-2xl font-playfair font-bold text-stone-800 placeholder-stone-300 mt-4 mb-2 border-b border-stone-200 pb-2`} 
-            placeholder="中標題..." 
-            rows={Math.max(1, block.content.split('\n').length)}
-        />
-      ) : <h2 className="text-2xl font-playfair font-bold text-stone-800 mt-4 mb-2 border-b border-stone-200 pb-2">{block.content}</h2>;
-
-    case 'heading-3':
-      return isEditing ? (
-        <textarea 
-            value={block.content} 
-            onChange={e => onUpdate(block.id, e.target.value)} 
-            className={`${commonClasses} text-xl font-bold text-stone-700 placeholder-stone-300 mt-3 mb-1`} 
-            placeholder="小標題..." 
-            rows={Math.max(1, block.content.split('\n').length)}
-        />
-      ) : <h3 className="text-xl font-bold text-stone-700 mt-3 mb-1">{block.content}</h3>;
-
-    case 'bullet-list':
-      return (
-        <div className="flex items-start gap-2 my-1">
-          <span className="text-stone-400 text-xl leading-relaxed">•</span>
-          {isEditing ? (
-            <textarea 
-                value={block.content} 
-                onChange={e => onUpdate(block.id, e.target.value)} 
-                className={`${commonClasses} text-stone-700 leading-relaxed`} 
-                placeholder="清單項目..." 
-                rows={Math.max(1, block.content.split('\n').length)}
-            />
-          ) : <p className="text-stone-700 leading-relaxed">{parseText(block.content)}</p>}
-        </div>
-      );
-
-    case 'number-list':
-        return (
-          <div className="flex items-start gap-2 my-1">
-            <span className="text-stone-400 font-mono mt-0.5 font-bold">{indexContext}.</span>
-            {isEditing ? (
-              <textarea 
-                value={block.content} 
-                onChange={e => onUpdate(block.id, e.target.value)} 
-                className={`${commonClasses} text-stone-700 leading-relaxed`} 
-                placeholder="編號清單..." 
-                rows={Math.max(1, block.content.split('\n').length)}
-              />
-            ) : <p className="text-stone-700 leading-relaxed">{parseText(block.content)}</p>}
-          </div>
-        );
-
-    case 'callout':
-        return (
-            <div className={`p-4 rounded-xl border my-4 flex gap-3 ${block.props?.color === 'red' ? 'bg-red-50 border-red-100 text-red-800' : block.props?.color === 'blue' ? 'bg-sky-50 border-sky-100 text-sky-800' : block.props?.color === 'green' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-amber-50 border-amber-100 text-amber-800'}`}>
-                <div className="mt-0.5">💡</div>
-                {isEditing ? (
-                    <div className="flex-grow">
-                        <textarea 
-                            value={block.content} 
-                            onChange={e => onUpdate(block.id, e.target.value)} 
-                            className={`${commonClasses} bg-transparent font-medium`} 
-                            placeholder="重點提示..." 
-                            rows={Math.max(1, block.content.split('\n').length)}
-                        />
-                        <div className="flex gap-2 mt-2">
-                            {['amber', 'red', 'blue', 'green'].map(c => (
-                                <button key={c} type="button" onClick={() => onUpdateProps(block.id, { color: c })} className={`w-4 h-4 rounded-full ${c === 'amber' ? 'bg-amber-400' : c === 'red' ? 'bg-red-400' : c === 'blue' ? 'bg-sky-400' : 'bg-emerald-400'}`}></button>
-                            ))}
-                        </div>
-                    </div>
-                ) : <p className="font-medium whitespace-pre-wrap">{parseText(block.content)}</p>}
-            </div>
-        );
-
-    case 'toggle':
-        return (
-            <div className="my-4 border border-stone-200 rounded-xl overflow-hidden bg-white">
-                {isEditing ? (
-                    <div className="p-4 bg-stone-50">
-                        <input 
-                            type="text" 
-                            value={block.content} 
-                            onChange={e => onUpdate(block.id, e.target.value)} 
-                            className="w-full bg-transparent font-bold text-stone-700 placeholder-stone-400 outline-none mb-2" 
-                            placeholder="折疊標題 (例如：點擊查看更多)..."
-                        />
-                        <div className="h-px bg-stone-200 mb-2"></div>
-                        <textarea 
-                            value={block.props?.details || ''} 
-                            onChange={e => onUpdateProps(block.id, { details: e.target.value })} 
-                            className="w-full bg-transparent text-stone-600 text-sm leading-relaxed outline-none resize-none" 
-                            placeholder="隱藏的內容..."
-                            rows={Math.max(1, (block.props?.details || '').split('\n').length)}
-                        />
-                    </div>
-                ) : (
-                    <details className="group">
-                        <summary className="flex items-center justify-between p-4 cursor-pointer font-bold text-stone-700 hover:bg-stone-50 transition-colors select-none list-none">
-                            <span>{block.content || '點擊展開'}</span>
-                            <svg className="w-5 h-5 text-stone-400 group-open:rotate-180 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </summary>
-                        <div className="p-4 pt-0 mt-4 text-stone-600 text-sm leading-relaxed border-t border-stone-100">
-                            {parseText(block.props?.details || '')}
-                        </div>
-                    </details>
-                )}
-            </div>
-        );
-
-    case 'image':
-        return (
-            <div className="my-6">
-                {block.content ? (
-                    <div className="relative group">
-                        <img src={block.content} alt="Content" className="rounded-xl shadow-sm max-w-full h-auto max-h-[500px] object-contain mx-auto border border-stone-100" />
-                        {isEditing && (
-                            <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                                <input 
-                                    type="text" 
-                                    value={block.content} 
-                                    onChange={e => onUpdate(block.id, e.target.value)} 
-                                    className="glass-input text-xs px-2 py-1 flex-grow" 
-                                    placeholder="圖片網址..."
-                                />
-                                <button onClick={() => onUpdate(block.id, '')} className="bg-white p-1 rounded text-red-500 hover:bg-red-50 shadow-sm"><TrashIcon className="w-4 h-4"/></button>
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    isEditing ? (
-                        <div className="border-2 border-dashed border-stone-300 rounded-xl p-8 text-center bg-stone-50 flex flex-col items-center">
-                            {uploading ? <div className="text-pizza-500 font-bold animate-pulse">上傳中...</div> : (
-                                <>
-                                    <ImageIcon className="w-8 h-8 text-stone-400 mb-2"/>
-                                    <label className="cursor-pointer px-4 py-2 bg-white border border-stone-200 rounded-lg hover:bg-stone-100 text-xs font-bold text-stone-600 mb-2 shadow-sm">
-                                        上傳圖片
-                                        <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, 'image')} className="hidden" />
-                                    </label>
-                                    <span className="text-xs text-stone-400 mb-2">- 或 -</span>
-                                    <input type="text" value={block.content} onChange={e => onUpdate(block.id, e.target.value)} className="glass-input w-3/4 px-3 py-2 text-sm text-center" placeholder="貼上圖片網址..." />
-                                </>
-                            )}
-                        </div>
-                    ) : null
-                )}
-            </div>
-        );
-    case 'video':
-        const getEmbedUrl = (url: string) => {
-            if (!url) return '';
-            if (url.includes('youtube.com/watch?v=')) return url.replace('watch?v=', 'embed/');
-            if (url.includes('youtu.be/')) return url.replace('youtu.be/', 'youtube.com/embed/');
-            return url; 
-        };
-        return (
-            <div className="my-6 aspect-video bg-stone-100 rounded-xl overflow-hidden relative group">
-                {block.content ? (
-                    <>
-                        {block.content.includes('supabase') ? (
-                             <video src={block.content} controls className="w-full h-full rounded-xl"></video>
-                        ) : (
-                             <iframe src={getEmbedUrl(block.content)} title="Video" className="w-full h-full" allowFullScreen frameBorder="0"></iframe>
-                        )}
-                        {isEditing && (
-                             <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                                <input 
-                                    type="text" 
-                                    value={block.content} 
-                                    onChange={e => onUpdate(block.id, e.target.value)} 
-                                    className="glass-input text-xs px-2 py-1 flex-grow" 
-                                    placeholder="影片網址..."
-                                />
-                                <button onClick={() => onUpdate(block.id, '')} className="bg-white p-1 rounded text-red-500 hover:bg-red-50 shadow-sm"><TrashIcon className="w-4 h-4"/></button>
-                            </div>
-                        )}
-                    </>
-                ) : (
-                    isEditing ? (
-                        <div className="flex flex-col items-center justify-center h-full border-2 border-dashed border-stone-300 rounded-xl p-4">
-                             {uploading ? <div className="text-pizza-500 font-bold animate-pulse">上傳中...</div> : (
-                                <>
-                                    <VideoIcon className="w-8 h-8 text-stone-400 mb-2"/>
-                                    <label className="cursor-pointer px-4 py-2 bg-white border border-stone-200 rounded-lg hover:bg-stone-100 text-xs font-bold text-stone-600 mb-2 shadow-sm">
-                                        上傳影片
-                                        <input type="file" accept="video/*" onChange={(e) => handleFileUpload(e, 'video')} className="hidden" />
-                                    </label>
-                                    <span className="text-xs text-stone-400 mb-2">- 或 -</span>
-                                    <input type="text" value={block.content} onChange={e => onUpdate(block.id, e.target.value)} className="glass-input w-3/4 px-3 py-2 text-sm text-center" placeholder="貼上 YouTube 網址..." />
-                                </>
-                             )}
-                        </div>
-                    ) : null
-                )}
-            </div>
-        );
-    
-    case 'pdf':
-        return (
-            <div className="my-6 w-full bg-stone-50 rounded-xl overflow-hidden border border-stone-200">
-                {block.content ? (
-                    <div className="w-full h-[600px]">
-                        <object data={block.content} type="application/pdf" className="w-full h-full">
-                            <div className="flex flex-col items-center justify-center h-full text-stone-500">
-                                <p className="mb-2">瀏覽器無法直接預覽此 PDF</p>
-                                <a href={block.content} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-pizza-500 text-white rounded-lg text-sm font-bold">下載檢視</a>
-                            </div>
-                        </object>
-                    </div>
-                ) : (
-                    isEditing ? (
-                        <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-stone-300 rounded-xl m-4 bg-white">
-                            {uploading ? (
-                                <div className="text-pizza-500 font-bold animate-pulse">上傳中...</div>
-                            ) : (
-                                <>
-                                    <DocumentIcon />
-                                    <label className="mt-2 px-4 py-2 bg-stone-100 hover:bg-stone-200 rounded-lg text-xs font-bold cursor-pointer text-stone-600 transition-colors">
-                                        上傳 PDF 檔案
-                                        <input type="file" accept="application/pdf" onChange={(e) => handleFileUpload(e, 'pdf')} className="hidden" />
-                                    </label>
-                                    <span className="text-[10px] text-stone-400 mt-2">最大 5MB</span>
-                                </>
-                            )}
-                        </div>
-                    ) : null
-                )}
-                {isEditing && block.content && (
-                    <div className="p-2 bg-white border-t border-stone-200 flex justify-end">
-                        <button onClick={() => onUpdate(block.id, '')} className="text-red-500 text-xs font-bold px-3 py-1 hover:bg-red-50 rounded">移除 PDF</button>
-                    </div>
-                )}
-            </div>
-        );
-
-    case 'divider':
-        return <hr className="my-8 border-t-2 border-stone-100" />;
-    
-    case 'table':
-        let tableData: string[][] = [];
+        setUploading(true);
         try {
-            tableData = JSON.parse(block.content);
-            if (!Array.isArray(tableData)) tableData = [['標題 1', '標題 2'], ['內容 1', '內容 2']];
-        } catch {
-            tableData = [['標題 1', '標題 2'], ['內容 1', '內容 2']];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+            const { error } = await supabase.storage.from('media').upload(fileName, file);
+            if (error) throw error;
+            
+            const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(fileName);
+            onInsert(publicUrl);
+            onClose();
+        } catch (error: any) {
+             if (error.message && error.message.includes('maximum allowed size')) {
+                 setErrorMsg('上傳失敗：檔案超過伺服器限制 (50MB)。');
+             } else {
+                 setErrorMsg('上傳失敗：' + error.message);
+             }
+        } finally {
+            setUploading(false);
         }
+    };
 
-        const updateTableData = (newData: string[][]) => {
-             onUpdate(block.id, JSON.stringify(newData));
-        };
+    const handleUrlInsert = () => {
+        if (!url) return;
+        onInsert(url);
+        onClose();
+    };
 
-        const handleCellChange = (rowIndex: number, colIndex: number, value: string) => {
-            const newData = [...tableData];
-            newData[rowIndex] = [...newData[rowIndex]];
-            newData[rowIndex][colIndex] = value;
-            updateTableData(newData);
-        };
+    return (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex justify-center items-center p-4" onClick={onClose}>
+            <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl border border-white/50" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-stone-800 mb-4">插入圖片</h3>
+                
+                {errorMsg && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-pulse">
+                        <div className="text-red-500 text-lg">⚠️</div>
+                        <p className="text-xs text-red-600 font-bold whitespace-pre-line leading-relaxed pt-0.5">{errorMsg}</p>
+                    </div>
+                )}
 
-        const addRow = () => {
-            const colCount = tableData[0]?.length || 1;
-            const newRow = new Array(colCount).fill('');
-            updateTableData([...tableData, newRow]);
-        };
-
-        const addColumn = () => {
-            const newData = tableData.map(row => [...row, '']);
-            updateTableData(newData);
-        };
-
-        const deleteRow = (rowIndex: number, e: React.MouseEvent) => {
-             e.preventDefault();
-             e.stopPropagation();
-             if (tableData.length <= 1) return;
-             
-             onConfirmAction('確定要刪除此列嗎？', () => {
-                 const newData = tableData.filter((_, i) => i !== rowIndex);
-                 updateTableData(newData);
-             });
-        };
-
-        const deleteColumn = (colIndex: number, e: React.MouseEvent) => {
-             e.preventDefault();
-             e.stopPropagation();
-             if (tableData[0].length <= 1) return;
-             
-             onConfirmAction('確定要刪除此欄嗎？', () => {
-                 const newData = tableData.map(row => row.filter((_, i) => i !== colIndex));
-                 updateTableData(newData);
-             });
-        };
-
-        return (
-            <div className="my-6 w-full overflow-x-auto pb-12 pl-4 pt-8 pr-2 relative z-10 custom-scrollbar">
-                <div className="inline-block min-w-full align-middle">
-                     <table className="min-w-full border-collapse border border-stone-200 shadow-sm bg-white rounded-lg table-fixed">
-                         <thead>
-                             <tr>
-                                 {isEditing && <th className="p-2 bg-stone-50 w-12 border border-stone-200"></th>}
-                                 {tableData[0].map((_, colIndex) => (
-                                     <th key={colIndex} className="relative p-2 bg-stone-50 border border-stone-200 min-w-[120px] group/col">
-                                         {isEditing && (
-                                             <div className="absolute -top-8 left-0 right-0 flex justify-center opacity-0 group-hover/col:opacity-100 transition-opacity z-20">
-                                                 <button 
-                                                    type="button"
-                                                    onClick={(e) => deleteColumn(colIndex, e)} 
-                                                    className="bg-white text-red-500 border border-stone-200 rounded-full p-1.5 hover:bg-red-50 shadow-md cursor-pointer"
-                                                    title="刪除此欄"
-                                                 >
-                                                     <svg className="w-3 h-3 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                                                 </button>
-                                             </div>
-                                         )}
-                                     </th>
-                                 ))}
-                                 {isEditing && (
-                                     <th className="p-2 bg-stone-50 border border-stone-200 w-16 align-middle text-center bg-pizza-50/50 hover:bg-pizza-50 transition-colors cursor-pointer" onClick={addColumn} title="新增欄">
-                                         <div className="flex flex-col items-center justify-center h-full text-pizza-500">
-                                             <PlusIcon className="w-6 h-6"/>
-                                         </div>
-                                     </th>
-                                 )}
-                             </tr>
-                         </thead>
-                         <tbody className="bg-white">
-                             {tableData.map((row, rowIndex) => (
-                                 <tr key={rowIndex}>
-                                     {isEditing && (
-                                         <td className="p-2 bg-stone-50 border border-stone-200 text-center group/row relative w-12">
-                                            <button 
-                                                type="button"
-                                                onClick={(e) => deleteRow(rowIndex, e)} 
-                                                className="absolute top-1/2 -left-3 -translate-y-1/2 bg-white text-red-500 border border-stone-200 rounded-full p-1.5 opacity-0 group-hover/row:opacity-100 transition-opacity hover:bg-red-50 z-20 shadow-md cursor-pointer"
-                                                title="刪除此列"
-                                            >
-                                                <svg className="w-3 h-3 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                                            </button>
-                                         </td>
-                                     )}
-                                     {row.map((cell, colIndex) => (
-                                         <td key={colIndex} className="border border-stone-200 p-0 relative">
-                                             {isEditing ? (
-                                                 <textarea
-                                                     value={cell} 
-                                                     onChange={(e) => handleCellChange(rowIndex, colIndex, e.target.value)}
-                                                     className="w-full h-full min-h-[48px] p-3 bg-transparent outline-none focus:bg-pizza-50/20 focus:ring-2 focus:ring-pizza-500/20 transition-all text-sm text-stone-700 resize-none block"
-                                                     placeholder="..."
-                                                     rows={Math.max(1, cell.split('\n').length)}
-                                                 />
-                                             ) : (
-                                                 <div className="p-3 text-sm text-stone-700 whitespace-pre-wrap break-words">{parseText(cell)}</div>
-                                             )}
-                                         </td>
-                                     ))}
-                                     {isEditing && <td className="bg-stone-50 border border-stone-200"></td>}
-                                 </tr>
-                             ))}
-                         </tbody>
-                     </table>
-                    {isEditing && (
-                         <div className="flex justify-center mt-2">
-                             <button 
-                                type="button" 
-                                onClick={addRow} 
-                                className="flex items-center justify-center w-8 h-8 bg-white border border-stone-300 rounded-full hover:bg-pizza-50 hover:text-pizza-500 hover:border-pizza-300 transition-all shadow-sm"
-                                title="新增列"
-                             >
-                                 <PlusIcon className="w-5 h-5" />
-                             </button>
-                         </div>
-                    )}
+                <div className="flex gap-4 mb-6 border-b border-stone-100">
+                    <button onClick={() => { setActiveTab('upload'); setErrorMsg(null); }} className={`pb-2 text-sm font-bold ${activeTab === 'upload' ? 'text-pizza-500 border-b-2 border-pizza-500' : 'text-stone-400'}`}>上傳檔案</button>
+                    <button onClick={() => { setActiveTab('url'); setErrorMsg(null); }} className={`pb-2 text-sm font-bold ${activeTab === 'url' ? 'text-pizza-500 border-b-2 border-pizza-500' : 'text-stone-400'}`}>網址連結</button>
                 </div>
+                {activeTab === 'upload' ? (
+                    <div className="space-y-4">
+                        <div className="border-2 border-dashed border-stone-200 rounded-xl p-8 text-center hover:bg-stone-50 transition-colors">
+                            <input type="file" accept="image/*" onChange={e => { if(e.target.files && e.target.files[0]) { setFile(e.target.files[0]); setErrorMsg(null); } }} className="hidden" id="media-upload" />
+                            <label htmlFor="media-upload" className="cursor-pointer flex flex-col items-center">
+                                <span className="text-2xl mb-2">📷</span>
+                                <span className="text-sm font-bold text-stone-600">{file ? file.name : '點擊選擇檔案'}</span>
+                            </label>
+                        </div>
+                        <button onClick={handleUpload} disabled={!file || uploading} className="w-full py-3 bg-pizza-500 hover:bg-pizza-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">{uploading ? '上傳中...' : '確認上傳'}</button>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <input type="text" value={url} onChange={e => { setUrl(e.target.value); setErrorMsg(null); }} placeholder="https://example.com/image.jpg" className="w-full px-4 py-3 rounded-xl bg-stone-50 border border-stone-200 focus:border-pizza-500 outline-none text-sm" />
+                        <button onClick={handleUrlInsert} disabled={!url} className="w-full py-3 bg-pizza-500 hover:bg-pizza-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">插入連結</button>
+                    </div>
+                )}
             </div>
-        );
-
-    default:
-      return isEditing ? (
-        <textarea 
-            value={block.content} 
-            onChange={e => onUpdate(block.id, e.target.value)} 
-            className={`${commonClasses} text-stone-600 leading-relaxed min-h-[1.5em]`} 
-            placeholder="輸入內容..." 
-            rows={Math.max(1, block.content.split('\n').length)}
-        />
-      ) : <p className="text-stone-600 leading-relaxed whitespace-pre-wrap min-h-[1.5em]">{parseText(block.content) || <br/>}</p>;
-  }
+        </div>
+    );
 };
 
-const calculateTimeTaken = (start: string, end: string) => {
-    const s = new Date(start).getTime();
-    const e = new Date(end).getTime();
-    const diff = e - s;
-    if (diff < 0) return '-';
-    
-    const seconds = Math.floor((diff / 1000) % 60);
-    const minutes = Math.floor((diff / (1000 * 60)) % 60);
-    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+const CustomToolbar = ({ onImage }: { onImage: () => void }) => (
+    <div id="toolbar" className="flex flex-wrap items-center gap-1 sticky top-0 z-20 bg-[#f5f5f4] border-b border-[#e7e5e4] px-2 py-2 rounded-t-2xl">
+      <select className="ql-header" defaultValue="" onChange={e => e.persist()} title="標題">
+        <option value="1" /><option value="2" /><option value="" />
+      </select>
+      <select className="ql-font" defaultValue="inter" title="字體">
+        <option value="inter">Inter</option><option value="roboto">Roboto</option><option value="playfair">Playfair</option><option value="syne">Syne</option><option value="dela">Dela Gothic</option><option value="noto">Noto Sans TC</option>
+      </select>
+      <select className="ql-size" defaultValue="16px" title="大小">
+        <option value="12px">12px</option><option value="14px">14px</option><option value="16px">16px</option><option value="18px">18px</option><option value="20px">20px</option><option value="24px">24px</option><option value="30px">30px</option><option value="36px">36px</option><option value="48px">48px</option>
+      </select>
+      <span className="w-px h-4 bg-stone-300 mx-1" />
+      <button className="ql-bold" title="粗體" /><button className="ql-italic" title="斜體" /><button className="ql-underline" title="底線" /><button className="ql-strike" title="刪除線" /><button className="ql-blockquote" title="引用" />
+      <select className="ql-color" title="文字顏色" /><select className="ql-background" title="背景顏色" />
+      <span className="w-px h-4 bg-stone-300 mx-1" />
+      <button className="ql-list" value="ordered" title="編號列表" /><button className="ql-list" value="bullet" title="項目符號" /><button className="ql-align" value="" title="靠左對齊" /><button className="ql-align" value="center" title="置中對齊" /><button className="ql-align" value="right" title="靠右對齊" />
+      <span className="w-px h-4 bg-stone-300 mx-1" />
+      <button className="ql-link" title="插入連結" />
+      <button onClick={onImage} className="hover:text-pizza-500" title="插入圖片">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+      </button>
+      <button className="ql-clean" title="清除格式" />
+    </div>
+);
 
-    const parts = [];
-    if (days > 0) parts.push(`${days}天`);
-    if (hours > 0) parts.push(`${hours}小時`);
-    if (minutes > 0) parts.push(`${minutes}分`);
-    parts.push(`${seconds}秒`);
-    
-    return parts.join(' ');
-};
+interface AnnouncementDetailPageProps {
+    userRole: UserRole;
+    userId: string;
+    userName: string;
+}
 
-const AnnouncementDetailPage: React.FC<{ userRole: UserRole; userId: string; userName?: string }> = ({ userRole, userId, userName }) => {
+const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRole, userId, userName }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
-  const [blocks, setBlocks] = useState<SOPBlock[]>([]);
+  const [editorHtml, setEditorHtml] = useState('');
+  const [sheetData, setSheetData] = useState<string[][]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [confirmState, setConfirmState] = useState<{ message: string; onConfirm: () => void } | null>(null);
-  
-  const [targetPersonnelList, setTargetPersonnelList] = useState<Array<Personnel & { readRecord?: AnnouncementRead }>>([]);
-  const [targetRoles, setTargetRoles] = useState<string[]>([]);
-  const [targetStations, setTargetStations] = useState<string[]>([]);
-  const [contentTags, setContentTags] = useState<TagData[]>([]);
-  const [roleTags, setRoleTags] = useState<TagData[]>([]);
-  const [stationTags, setStationTags] = useState<TagData[]>([]);
-  const [selectedWeekDays, setSelectedWeekDays] = useState<number[]>([]);
-  const [category, setCategory] = useState<string>('');
-  const [dates, setDates] = useState<{start: string, end: string}>({start: '', end: ''});
-  const [isPermanent, setIsPermanent] = useState(false);
-  const [isStartCalendarOpen, setIsStartCalendarOpen] = useState(false);
-  const [isEndCalendarOpen, setIsEndCalendarOpen] = useState(false);
-  const [calendarViewDate, setCalendarViewDate] = useState(new Date());
-  
-  // Preview Mode
-  const [isPreviewMode, setIsPreviewMode] = useState(false);
-  // Link Modal
-  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [mediaModal, setMediaModal] = useState<{ isOpen: boolean }>({ isOpen: false });
+  const [isRead, setIsRead] = useState(false);
+  const quillRef = useRef<ReactQuill>(null);
 
-  const canManage = userRole === 'admin';
-  const canEdit = canManage && !isPreviewMode;
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const prevBlocksLength = useRef(0);
-  const hasReadRef = useRef(false);
-  const calendarRef = useRef<HTMLDivElement>(null);
+  // Read Status Stats
+  const [readStats, setReadStats] = useState<{read: DetailedReadStatus[], unread: DetailedReadStatus[]} | null>(null);
+  const [showReadModal, setShowReadModal] = useState(false);
+
+  // Metadata Edit States
+  const [editTitle, setEditTitle] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editCycle, setEditCycle] = useState('daily');
+  const [editRoles, setEditRoles] = useState<string[]>([]);
+  const [editStations, setEditStations] = useState<string[]>([]);
   
-  useEffect(() => { fetchData(); }, [id, navigate]);
+  // Tags
+  const [tagOptions, setTagOptions] = useState<{categories: TagData[], jobs: TagData[], stations: TagData[]}>({categories:[], jobs:[], stations:[]});
+
+  const modules = useMemo(() => ({
+    toolbar: {
+      container: "#toolbar",
+    },
+    clipboard: {
+        matchVisual: false
+    }
+  }), []);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-        if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
-            setIsStartCalendarOpen(false);
-            setIsEndCalendarOpen(false);
-        }
-    };
-    if (isStartCalendarOpen || isEndCalendarOpen) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isStartCalendarOpen, isEndCalendarOpen]);
-
-  const fetchData = async () => {
+    const fetchAll = async () => {
       if (!id) return;
       setLoading(true);
-      
-      const { data, error } = await supabase.from('announcements').select('*').eq('id', id).single();
-      if (error) { navigate('/announcement-list'); return; }
 
-      const anno = data as any;
-      setAnnouncement(anno);
-      setBlocks(anno.content || []);
-      prevBlocksLength.current = (anno.content || []).length;
-      setTargetRoles(anno.target_roles || []);
-      setTargetStations(anno.target_stations || []);
-      
-      const rawCycleType = anno.cycle_type || 'daily';
-      if (rawCycleType.startsWith('weekly:')) {
-          const daysStr = rawCycleType.split(':')[1];
-          if (daysStr) setSelectedWeekDays(daysStr.split(',').map(Number));
-      } else setSelectedWeekDays([]);
-
-      setCategory(anno.category || '');
-      setDates({ start: anno.start_date || '', end: anno.end_date || '' });
-      setIsPermanent(!anno.end_date);
-
-      const { data: tagsData } = await supabase.from('tags').select('*').in('category', ['anno_category', 'job', 'station']);
-      if (tagsData) {
-          setContentTags(tagsData.filter((t: any) => t.category === 'anno_category'));
-          setRoleTags(tagsData.filter((t: any) => t.category === 'job'));
-          setStationTags(tagsData.filter((t: any) => t.category === 'station'));
+      // Fetch Tags
+      const { data: tags } = await supabase.from('tags').select('*').in('category', ['anno_category', 'job', 'station']);
+      if(tags) {
+          setTagOptions({
+              categories: tags.filter((t: any) => t.category === 'anno_category'),
+              jobs: tags.filter((t: any) => t.category === 'job'),
+              stations: tags.filter((t: any) => t.category === 'station')
+          });
       }
 
-      if (userRole === 'admin') {
-          const { data: reads } = await supabase.from('announcement_reads').select('*, personnel:personnel_id(name)').eq('announcement_id', id);
-          // Filter out admins from the list
-          const { data: allPersonnel } = await supabase.from('personnel').select('*').eq('status', '在職').neq('role', 'admin');
-          
-          if (allPersonnel) {
-              const readMap = new Map<string, AnnouncementRead>(reads?.map((r: any) => [r.personnel_id, r as AnnouncementRead]) || []);
-              const relevantPersonnel = (allPersonnel as Personnel[]).filter(p => {
-                  const roleMatch = anno.target_roles?.some((r: string) => {
-                      const rTrimmed = r.trim();
-                      if (rTrimmed === '一般員工') return true;
-                      if (rTrimmed === 'DUTY' && (p.jobTitle.includes('DUTY') || p.jobTitle === 'A TEAM' || p.jobTitle === '管理員')) return true;
-                      if (rTrimmed === 'ATEAM' && (p.jobTitle === 'A TEAM' || p.jobTitle === '管理員')) return true;
-                      if (p.jobTitle === rTrimmed) return true;
-                      return false;
-                  });
-                  const stationMatch = anno.target_stations?.some((s: string) => {
-                      const sTrimmed = s.trim();
-                      if (sTrimmed === '全體') return true;
-                      if (p.station === sTrimmed) return true;
-                      return false;
-                  });
-                  return roleMatch && stationMatch;
-              }).map(p => ({ ...p, readRecord: readMap.get(p.id) }));
+      // Fetch Announcement
+      const { data } = await supabase.from('announcements').select('*').eq('id', id).single();
+      
+      // Fetch read status for CURRENT user
+      const { data: readData } = await supabase
+        .from('announcement_reads')
+        .select('*')
+        .eq('announcement_id', id)
+        .eq('personnel_id', userId)
+        .maybeSingle();
 
-              relevantPersonnel.sort((a, b) => {
-                  const aRead = !!a.readRecord;
-                  const bRead = !!b.readRecord;
-                  if (aRead === bRead) return a.name.localeCompare(b.name);
-                  return aRead ? 1 : -1;
-              });
-              setTargetPersonnelList(relevantPersonnel);
-          }
-      } else {
-          const { data: myRead } = await supabase.from('announcement_reads').select('*').eq('announcement_id', id).eq('personnel_id', userId).single();
-          if (myRead) hasReadRef.current = true;
+      if (readData && readData.read_at) {
+          setIsRead(true);
+      }
+
+      if (data) {
+        setAnnouncement({ ...data });
+        setEditorHtml(convertBlocksToHtml(data.content || []));
+        
+        // Extract Sheet
+        const tableBlock = (data.content || []).find((b: SOPBlock) => b.type === 'table');
+        if(tableBlock) {
+             try { setSheetData(JSON.parse(tableBlock.content)); } catch(e) { setSheetData([]); }
+        }
+
+        // Init Edit State
+        setEditTitle(data.title);
+        setEditCategory(data.category);
+        setEditStartDate(data.start_date);
+        setEditEndDate(data.end_date || '');
+        setEditCycle(data.cycle_type);
+        setEditRoles(data.target_roles || []);
+        setEditStations(data.target_stations || []);
+      } else { 
+          navigate('/announcement-list'); 
       }
       setLoading(false);
-  };
+    };
+    fetchAll();
+  }, [id, userId, navigate]);
 
-  useEffect(() => {
-    if (canEdit || hasReadRef.current || !id) return;
-    const observer = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && !hasReadRef.current) markAsRead();
-    }, { threshold: 1.0 });
-    if (bottomRef.current) observer.observe(bottomRef.current);
-    return () => observer.disconnect();
-  }, [loading, canEdit, id]);
+  const canManage = ['admin', 'duty'].includes(userRole);
 
-  // Auto-scroll to bottom when a new block is added
-  useEffect(() => {
-      if (blocks.length > prevBlocksLength.current) {
-          bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      prevBlocksLength.current = blocks.length;
-  }, [blocks.length]);
+  const fetchReadStats = async () => {
+      if (!canManage || !id || !announcement) return;
 
-  const markAsRead = async () => {
-      hasReadRef.current = true;
-      const nowStr = new Date().toISOString();
-      const { data: existing } = await supabase.from('announcement_reads').select('*').eq('announcement_id', id).eq('personnel_id', userId).single();
+      const { data: peopleData } = await supabase.from('personnel').select('*').eq('status', '在職');
+      if (!peopleData) return;
 
-      let shouldResetConfirmation = false;
-      if (existing) {
-          const readDate = new Date(existing.read_at);
-          const today = new Date();
-          if (readDate.toDateString() !== today.toDateString()) shouldResetConfirmation = true;
-      } else shouldResetConfirmation = true; 
+      const { data: readsData } = await supabase.from('announcement_reads').select('*').eq('announcement_id', id);
+      const readMap = new Map((readsData || []).map((r: any) => [r.personnel_id, r]));
 
-      const payload: any = { announcement_id: id, personnel_id: userId, read_at: nowStr };
-      if (shouldResetConfirmation) {
-          payload.is_confirmed = false;
-          payload.confirmed_by = null;
-          payload.confirmed_at = null;
-      }
-      await supabase.from('announcement_reads').upsert(payload, { onConflict: 'announcement_id,personnel_id' });
-  };
+      const targets = peopleData.filter((p: any) => {
+           const jobTitle = p.job_title;
+           const station = p.station || '全體';
 
-  const handleConfirmRead = async (personnelId: string, isConfirmed: boolean) => {
-      const now = new Date().toISOString();
-      setTargetPersonnelList(prev => prev.map(p => {
-          if (p.id === personnelId && p.readRecord) {
-              return { ...p, readRecord: { ...p.readRecord, is_confirmed: isConfirmed, confirmed_by: isConfirmed ? userName : undefined, confirmed_at: isConfirmed ? now : undefined } };
+           // Role Check
+           const roles = announcement.target_roles || [];
+           const roleMatch = roles.some(r => {
+               const rTrimmed = r.trim();
+               if (rTrimmed === '一般員工') return true;
+               if (rTrimmed === 'DUTY' && (jobTitle.includes('DUTY') || jobTitle === 'A TEAM' || jobTitle === '管理員')) return true;
+               if (rTrimmed === 'ATEAM' && (jobTitle === 'A TEAM' || jobTitle === '管理員')) return true;
+               if (jobTitle === rTrimmed) return true;
+               return false;
+           });
+           
+           // Station Check
+           const stations = announcement.target_stations || [];
+           const stationMatch = stations.some(s => {
+               const sTrimmed = s.trim();
+               if (sTrimmed === '全體') return true;
+               if (station === sTrimmed) return true;
+               return false;
+           });
+           
+           return roleMatch && stationMatch;
+      });
+
+      const read: DetailedReadStatus[] = [];
+      const unread: DetailedReadStatus[] = [];
+
+      targets.forEach((p: any) => {
+          const record = readMap.get(p.id) as any;
+          const item: DetailedReadStatus = {
+              id: p.id,
+              name: p.name,
+              jobTitle: p.job_title,
+              readAt: record ? record.read_at : null,
+              isConfirmed: record ? !!record.is_confirmed : false,
+              confirmedAt: record ? record.confirmed_at : null,
+              confirmedBy: record ? record.confirmed_by : null
+          };
+          if (record && record.read_at) {
+              read.push(item);
+          } else {
+              unread.push(item);
           }
-          return p;
-      }));
-      const { error } = await supabase.from('announcement_reads').update({ is_confirmed: isConfirmed, confirmed_by: isConfirmed ? userName : null, confirmed_at: isConfirmed ? now : null }).match({ announcement_id: id, personnel_id: personnelId });
-      if (error) alert('更新失敗');
+      });
+
+      setReadStats({ read, unread });
   };
+
+  useEffect(() => {
+      fetchReadStats();
+  }, [canManage, id, announcement, showReadModal]); // Re-fetch when modal opens
 
   const handleSave = async () => {
     if (!id) return;
-    if (!announcement?.title?.trim()) { alert('請輸入公告標題'); return; }
-    let finalCycleType = 'daily';
-    if (selectedWeekDays.length > 0) finalCycleType = `weekly:${selectedWeekDays.join(',')}`;
-
     setSaving(true);
-    const { error } = await supabase.from('announcements').update({ 
-        content: blocks, target_roles: targetRoles, target_stations: targetStations, cycle_type: finalCycleType, category: category, start_date: dates.start, end_date: isPermanent ? null : (dates.end || null), title: announcement.title
-    }).eq('id', id);
     
-    if (!error) { setLastSaved(new Date()); alert('儲存成功！'); } 
-    else alert('儲存失敗：' + error.message);
+    const linkedHtml = autoLinkHtml(editorHtml);
+    const blocks: SOPBlock[] = [{ id: crypto.randomUUID(), type: 'richtext', content: linkedHtml }];
+    
+    if (sheetData.length > 0 && sheetData.some(row => row.some(cell => cell.trim() !== ''))) {
+        blocks.push({ id: crypto.randomUUID(), type: 'table', content: JSON.stringify(sheetData) });
+    }
+
+    const { error } = await supabase.from('announcements').update({ 
+        title: editTitle,
+        category: editCategory,
+        start_date: editStartDate,
+        end_date: editEndDate || null,
+        cycle_type: editCycle,
+        target_roles: editRoles,
+        target_stations: editStations,
+        content: blocks 
+    }).eq('id', id);
+
+    if (error) alert('儲存失敗: ' + error.message);
+    else {
+        // Update local state to reflect changes immediately
+        setAnnouncement(prev => prev ? ({
+            ...prev,
+            title: editTitle,
+            category: editCategory,
+            start_date: editStartDate,
+            end_date: editEndDate || null,
+            cycle_type: editCycle,
+            target_roles: editRoles,
+            target_stations: editStations,
+            content: blocks
+        }) : null);
+        setEditorHtml(linkedHtml);
+        alert('儲存成功');
+        setIsEditMode(false);
+    }
     setSaving(false);
   };
+  
+  const handleConfirmRead = async () => {
+      if (!id || !userId) return;
+      try {
+          // Robust duplicate check
+          const { data: existing } = await supabase
+            .from('announcement_reads')
+            .select('id')
+            .eq('announcement_id', id)
+            .eq('personnel_id', userId)
+            .maybeSingle();
 
-  const addBlock = (type: BlockType) => {
-    setBlocks([...blocks, { id: crypto.randomUUID(), type, content: type === 'table' ? JSON.stringify([['標題 1', '標題 2'], ['內容 1', '內容 2']]) : '', props: type === 'callout' ? { color: 'amber' } : {} }]);
+          const now = new Date().toISOString();
+
+          if (!existing) {
+             const { error } = await supabase.from('announcement_reads').insert({
+                  announcement_id: id,
+                  personnel_id: userId,
+                  read_at: now,
+                  // NOTE: We do NOT set is_confirmed here. 
+                  // is_confirmed is for Manager Verification.
+                  is_confirmed: false 
+             });
+             if (error) throw error;
+          } else {
+             const { error } = await supabase.from('announcement_reads').update({
+                  read_at: now
+             }).eq('id', existing.id);
+             if (error) throw error;
+          }
+          
+          setIsRead(true);
+          alert('已記錄您的閱讀時間！');
+      } catch (e: any) {
+          alert('操作失敗: ' + e.message);
+      }
   };
   
-  const handleLinkConfirm = (text: string, url: string) => {
-      const newBlock: SOPBlock = {
-          id: crypto.randomUUID(),
-          type: 'text',
-          content: `[${text}](${url})`,
-          props: {}
-      };
-      setBlocks([...blocks, newBlock]);
+  const handleVerifyPersonnel = async (personnelId: string, isConfirmed: boolean) => {
+      if (!id) return;
+      try {
+          // If verifying, we need to ensure a record exists (in case admin checks before user reads, though logic puts them in unread list usually)
+          // But based on logic, only people in "Read" list are displayed in table to be confirmed usually? 
+          // Current logic: unread are separate. Manager usually confirms people who HAVE read.
+          // But if manager wants to force confirm someone? 
+          // Let's stick to updating existing record for simplicity, assuming they are in the 'Read' list or we upsert.
+          
+          const now = new Date().toISOString();
+          
+          const updateData = {
+              is_confirmed: isConfirmed,
+              confirmed_at: isConfirmed ? now : null,
+              confirmed_by: isConfirmed ? userName : null
+          };
+
+          const { error } = await supabase.from('announcement_reads')
+             .update(updateData)
+             .eq('announcement_id', id)
+             .eq('personnel_id', personnelId);
+             
+          if (error) throw error;
+          
+          // Refresh stats
+          fetchReadStats();
+      } catch (e: any) {
+          alert('更新失敗: ' + e.message);
+      }
   };
 
-  const updateBlock = (bid: string, content: string) => setBlocks(prev => prev.map(b => b.id === bid ? { ...b, content } : b));
-  const updateBlockProps = (bid: string, props: any) => setBlocks(prev => prev.map(b => b.id === bid ? { ...b, props: { ...b.props, ...props } } : b));
-  const deleteBlock = (bid: string, e?: React.MouseEvent) => {
-      e?.stopPropagation();
-      setConfirmState({ message: '確定刪除此區塊？', onConfirm: () => { setBlocks(prev => prev.filter(b => b.id !== bid)); setConfirmState(null); } });
-  };
-  const moveBlock = (index: number, dir: 'up'|'down') => {
-      const newBlocks = [...blocks];
-      if (dir === 'up' && index > 0) [newBlocks[index], newBlocks[index-1]] = [newBlocks[index-1], newBlocks[index]];
-      else if (dir === 'down' && index < newBlocks.length -1) [newBlocks[index], newBlocks[index+1]] = [newBlocks[index+1], newBlocks[index]];
-      setBlocks(newBlocks);
-  };
-  const toggleWeekDay = (day: number) => {
-      if (selectedWeekDays.includes(day)) setSelectedWeekDays(prev => prev.filter(d => d !== day));
-      else setSelectedWeekDays(prev => [...prev, day]);
-  };
-  const handleDateSelect = (dateStr: string) => {
-      if (isStartCalendarOpen) { setDates(prev => ({ ...prev, start: dateStr })); setIsStartCalendarOpen(false); }
-      else if (isEndCalendarOpen) { setDates(prev => ({ ...prev, end: dateStr })); setIsEndCalendarOpen(false); }
-  };
-  const openCalendar = (type: 'start' | 'end') => {
-      if (type === 'end' && isPermanent) return;
-      const initialDateStr = type === 'start' ? dates.start : dates.end;
-      const initialDate = initialDateStr ? new Date(initialDateStr) : new Date();
-      if (isNaN(initialDate.getTime())) setCalendarViewDate(new Date());
-      else setCalendarViewDate(initialDate);
-      if (type === 'start') { setIsStartCalendarOpen(true); setIsEndCalendarOpen(false); } 
-      else { setIsEndCalendarOpen(true); setIsStartCalendarOpen(false); }
+  const handleMediaInsert = (url: string) => {
+      const quill = quillRef.current?.getEditor();
+      if (!quill) return;
+      const range = quill.getSelection(true);
+      quill.insertEmbed(range.index, 'image', url);
   };
 
-  const weekDaysUI = [{ label: '一', val: 1 }, { label: '二', val: 2 }, { label: '三', val: 3 }, { label: '四', val: 4 }, { label: '五', val: 5 }, { label: '六', val: 6 }, { label: '日', val: 0 }];
+  const toggleArrayItem = (arr: string[], item: string) => {
+      return arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item];
+  };
 
-  if (loading) return <div className="min-h-screen flex justify-center items-center">載入中...</div>;
-  if (!announcement) return null;
-
-  // Smart list numbering
-  let listIndex = 1;
+  if (loading || !announcement) return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-50/90 backdrop-blur-sm">
+        <div className="text-4xl md:text-6xl font-black text-pizza-500 animate-pulse tracking-[0.2em] font-sans drop-shadow-sm select-none">載入中</div>
+      </div>
+  );
 
   return (
-    <div className="container mx-auto p-6 sm:p-8 lg:p-12 pb-32 max-w-4xl relative">
-        <LinkInputModal 
-            isOpen={linkModalOpen} 
-            onClose={() => setLinkModalOpen(false)} 
-            onConfirm={handleLinkConfirm} 
+    <div className="container mx-auto p-6 pb-32 max-w-5xl">
+        <MediaModal 
+            isOpen={mediaModal.isOpen}
+            onClose={() => setMediaModal({ isOpen: false })}
+            onInsert={handleMediaInsert}
         />
-
-        {confirmState && (
-            <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
-                <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-                    <p className="text-center mb-4 font-bold text-stone-800">{confirmState.message}</p>
-                    <div className="flex gap-2">
-                        <button onClick={() => setConfirmState(null)} className="flex-1 py-2 bg-stone-100 rounded-lg text-xs font-bold">取消</button>
-                        <button onClick={confirmState.onConfirm} className="flex-1 py-2 bg-red-500 text-white rounded-lg text-xs font-bold">確認</button>
-                    </div>
-                </div>
-            </div>
+        
+        {readStats && (
+            <ReadStatusModal 
+                isOpen={showReadModal}
+                onClose={() => setShowReadModal(false)}
+                readList={readStats.read}
+                unreadList={readStats.unread}
+                onVerify={handleVerifyPersonnel}
+            />
         )}
 
-        {/* Floating Toolbar (Right Side) */}
-        {canEdit && (
-            <div className="fixed right-24 top-24 z-50 flex flex-col gap-2 bg-white/90 backdrop-blur p-3 rounded-2xl shadow-2xl border border-stone-200 animate-fade-in">
-                <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1 text-center">工具</p>
-                <Tooltip text="一般文字"><button onClick={() => addBlock('text')} className="p-2.5 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all text-stone-500"><TypeIcon/></button></Tooltip>
-                <Tooltip text="連結"><button onClick={() => setLinkModalOpen(true)} className="p-2.5 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all text-stone-500"><LinkIcon/></button></Tooltip>
-                <Tooltip text="圖片"><button onClick={() => addBlock('image')} className="p-2.5 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all text-stone-500"><ImageIcon/></button></Tooltip>
-                <Tooltip text="影片"><button onClick={() => addBlock('video')} className="p-2.5 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all text-stone-500"><VideoIcon/></button></Tooltip>
-                <Tooltip text="表格"><button onClick={() => addBlock('table')} className="p-2.5 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all text-stone-500"><TableIcon/></button></Tooltip>
-                <div className="h-px bg-stone-200 my-1 w-full"></div>
-                <Tooltip text="大標題"><button onClick={() => addBlock('heading-1')} className="px-2 py-2 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all font-playfair font-bold text-sm text-stone-600">H1</button></Tooltip>
-                <Tooltip text="中標題"><button onClick={() => addBlock('heading-2')} className="px-2 py-2 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all font-playfair font-bold text-xs text-stone-600">H2</button></Tooltip>
-                <div className="h-px bg-stone-200 my-1 w-full"></div>
-                <Tooltip text="提示框"><button onClick={() => addBlock('callout')} className="px-2 py-2 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all font-bold text-xs text-stone-600">💡</button></Tooltip>
-                <Tooltip text="折疊"><button onClick={() => addBlock('toggle')} className="p-2.5 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all text-stone-500"><ToggleIcon/></button></Tooltip>
-                <Tooltip text="清單"><button onClick={() => addBlock('bullet-list')} className="px-2 py-2 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all font-bold text-xs text-stone-600">•</button></Tooltip>
-                <Tooltip text="編號"><button onClick={() => addBlock('number-list')} className="px-2 py-2 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all font-bold text-xs text-stone-600">1.</button></Tooltip>
-                <Tooltip text="分隔線"><button onClick={() => addBlock('divider')} className="px-2 py-2 bg-white border border-stone-200 rounded-xl hover:border-pizza-400 hover:text-pizza-500 shadow-sm transition-all font-bold text-stone-400">—</button></Tooltip>
-            </div>
-        )}
-
-        <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-            <div className="flex-grow">
-                <Link to={userRole === 'admin' ? "/announcement-list" : "/"} className="text-xs font-bold text-stone-400 hover:text-pizza-500 uppercase tracking-widest mb-4 block">← 返回列表</Link>
-                <h1 className="text-4xl md:text-5xl font-playfair font-bold text-stone-900 mb-4">{announcement.title}</h1>
-                <div className="flex gap-3 mb-2">
-                    <span className="px-3 py-1 bg-stone-100 text-stone-600 rounded-full text-xs font-bold uppercase tracking-wider">{announcement.category}</span>
-                    <span className="px-3 py-1 bg-stone-100 text-stone-600 rounded-full text-xs font-bold uppercase tracking-wider">{announcement.start_date}</span>
-                </div>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+            <div className="w-full md:w-auto">
+                <button onClick={() => navigate('/announcement-list')} className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-2 hover:text-stone-600">← 返回列表</button>
+                {isEditMode ? (
+                    <input 
+                        type="text" 
+                        value={editTitle} 
+                        onChange={e => setEditTitle(e.target.value)} 
+                        className="glass-input text-3xl font-bold w-full rounded-xl px-4 py-2"
+                        placeholder="公告標題"
+                    />
+                ) : (
+                    <>
+                        <h1 className="text-4xl font-bold text-stone-900">{announcement.title}</h1>
+                        <div className="flex gap-2 mt-2">
+                            <span className="bg-pizza-100 text-pizza-600 px-2 py-1 rounded text-xs font-bold">{announcement.category}</span>
+                            <span className="bg-stone-100 text-stone-500 px-2 py-1 rounded text-xs font-bold">{announcement.start_date}</span>
+                        </div>
+                    </>
+                )}
             </div>
             
-            {canManage && (
-                <button 
-                    onClick={() => setIsPreviewMode(!isPreviewMode)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${isPreviewMode ? 'bg-pizza-500 text-white shadow-lg' : 'bg-white text-stone-500 border border-stone-200 hover:bg-stone-50'}`}
-                >
-                    {isPreviewMode ? <EyeSlashIcon /> : <EyeIcon />}
-                    {isPreviewMode ? '結束預覽' : '預覽模式'}
-                </button>
-            )}
+            <div className="flex gap-3 shrink-0">
+                {!isRead && (
+                    <button onClick={handleConfirmRead} className="texture-grain px-6 py-3 bg-pizza-500 text-white rounded-full text-xs font-bold uppercase tracking-widest shadow-lg hover:bg-pizza-600 hover:scale-105 transition-all">
+                        確認收到 (Sign)
+                    </button>
+                )}
+                {isRead && (
+                    <span className="px-6 py-3 bg-green-50 text-green-600 border border-green-200 rounded-full text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                        已簽收
+                    </span>
+                )}
+                {canManage && !isEditMode && (
+                    <>
+                        <button onClick={() => setShowReadModal(true)} className="px-6 py-3 bg-white text-stone-600 border border-stone-200 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-stone-50 hover:border-stone-300 transition-all">
+                            閱讀狀態 {readStats && `(${readStats.read.length}/${readStats.read.length + readStats.unread.length})`}
+                        </button>
+                        <button onClick={() => setIsEditMode(true)} className="texture-grain px-6 py-3 bg-stone-900 text-white rounded-full text-xs font-bold uppercase tracking-widest shadow-lg hover:bg-stone-700 hover:scale-105 transition-all">編輯</button>
+                    </>
+                )}
+            </div>
         </div>
-        
-        {canEdit ? (
-            <div className="glass-panel p-8 rounded-3xl mb-8 bg-white border border-stone-200 shadow-sm">
-                <input value={announcement.title} onChange={e => setAnnouncement({...announcement, title: e.target.value})} className="text-3xl md:text-4xl font-playfair font-bold text-stone-900 w-full bg-transparent outline-none mb-8 placeholder-stone-300 border-b border-transparent focus:border-stone-200 pb-2 transition-all" placeholder="公告標題" />
-                <div className="space-y-6">
+
+        {isEditMode ? (
+            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-stone-200 animate-fade-in relative p-1">
+                {/* Metadata Editor */}
+                <div className="p-6 bg-stone-50 border-b border-stone-100 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-xs font-bold uppercase text-stone-500 mb-2 tracking-widest">內容</label>
-                        <div className="flex flex-wrap gap-2">
-                            {contentTags.map(tag => (
-                                <button key={tag.id} onClick={() => setCategory(tag.value)} className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${category === tag.value ? 'bg-pizza-500 text-white border-pizza-500 shadow-md' : 'bg-white text-stone-500 border-stone-200 hover:border-pizza-300'}`}>{tag.value}</button>
+                        <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-2">基本設定</label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <select value={editCategory} onChange={e => setEditCategory(e.target.value)} className="glass-input px-3 py-2 rounded-lg w-full">
+                                {tagOptions.categories.map(c => <option key={c.id} value={c.value}>{c.value}</option>)}
+                            </select>
+                            <select value={editCycle} onChange={e => setEditCycle(e.target.value)} className="glass-input px-3 py-2 rounded-lg w-full">
+                                <option value="daily">每日</option>
+                                <option value="weekly:1">每週一</option>
+                                <option value="monthly">每月1號</option>
+                                <option value="fixed">指定日期</option>
+                            </select>
+                            <input type="date" value={editStartDate} onChange={e => setEditStartDate(e.target.value)} className="glass-input px-3 py-2 rounded-lg w-full" />
+                            <input type="date" value={editEndDate} onChange={e => setEditEndDate(e.target.value)} className="glass-input px-3 py-2 rounded-lg w-full" placeholder="結束日期 (選填)" />
+                        </div>
+                    </div>
+                    <div>
+                         <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-2">發送對象</label>
+                         <div className="flex flex-wrap gap-2 mb-2">
+                            {tagOptions.jobs.map(job => (
+                                <button 
+                                    key={job.id} 
+                                    onClick={() => setEditRoles(toggleArrayItem(editRoles, job.value))}
+                                    className={`px-2 py-1 rounded text-xs border ${editRoles.includes(job.value) ? 'bg-pizza-500 text-white border-pizza-500' : 'bg-white text-stone-500 border-stone-200'}`}
+                                >
+                                    {job.value}
+                                </button>
                             ))}
-                        </div>
-                    </div>
-                    <div className="relative" ref={calendarRef}>
-                        <div className="flex justify-between items-end mb-2">
-                            <label className="block text-xs font-bold uppercase text-stone-500 tracking-widest">公告有效期間</label>
-                            <div className="flex items-center gap-2"><input type="checkbox" id="permanentCheck" checked={isPermanent} onChange={(e) => setIsPermanent(e.target.checked)} className="rounded border-stone-300 text-pizza-500 focus:ring-pizza-500 cursor-pointer"/><label htmlFor="permanentCheck" className="text-xs font-bold text-stone-600 cursor-pointer select-none">永久公告</label></div>
-                        </div>
-                        <div className="p-1 bg-stone-100/50 rounded-2xl border border-stone-200 flex flex-col sm:flex-row gap-0.5">
-                                <div onClick={() => openCalendar('start')} className={`flex-1 relative bg-white rounded-xl sm:rounded-r-none sm:rounded-l-xl p-3 hover:bg-stone-50 transition-colors group cursor-pointer ${isStartCalendarOpen ? 'ring-2 ring-pizza-500 z-20' : ''}`}>
-                                <span className="absolute top-2 left-3 text-[10px] text-stone-400 font-bold uppercase tracking-wider">起始日期</span>
-                                <div className="w-full pt-4 pb-1 px-1 text-stone-800 font-bold font-mono text-sm">{dates.start || <span className="text-stone-300">選擇日期</span>}</div>
-                                </div>
-                                <div className="w-full sm:w-px bg-stone-200"></div>
-                                <div onClick={() => openCalendar('end')} className={`flex-1 relative rounded-xl sm:rounded-l-none sm:rounded-r-xl p-3 transition-colors group ${isPermanent ? 'bg-stone-50 cursor-not-allowed opacity-50' : 'bg-white hover:bg-stone-50 cursor-pointer'} ${isEndCalendarOpen ? 'ring-2 ring-pizza-500 z-20' : ''}`}>
-                                <span className="absolute top-2 left-3 text-[10px] text-stone-400 font-bold uppercase tracking-wider">結束日期 (選填)</span>
-                                <div className="w-full pt-4 pb-1 px-1 text-stone-800 font-bold font-mono text-sm">{isPermanent ? '永久有效' : (dates.end || <span className="text-stone-300">選擇日期</span>)}</div>
-                                </div>
-                        </div>
-                        {(isStartCalendarOpen || isEndCalendarOpen) && (
-                            <div className={`absolute z-50 top-full mt-2 shadow-2xl animate-fade-in ${isStartCalendarOpen ? 'left-0' : 'right-0'}`}>
-                                <Calendar currentDate={calendarViewDate} onMonthChange={(offset) => setCalendarViewDate(new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + offset, 1))} onDateSet={(date) => setCalendarViewDate(date)} onDateClick={handleDateSelect} simpleMode={true} activeDate={isStartCalendarOpen ? dates.start : dates.end} />
-                            </div>
-                        )}
-                    </div>
-                    <div className="p-6 bg-stone-50 rounded-2xl border border-stone-100">
-                        <label className="block text-xs font-bold uppercase text-stone-500 mb-4 text-center tracking-widest">公告週期 (選擇重複星期)</label>
-                        <div className="flex justify-center gap-4 flex-wrap">
-                            {weekDaysUI.map(d => (
-                                <button key={d.val} onClick={() => toggleWeekDay(d.val)} className={`w-10 h-10 md:w-12 md:h-12 rounded-full font-bold text-sm md:text-base transition-all shadow-sm flex items-center justify-center ${selectedWeekDays.includes(d.val) ? 'bg-pizza-500 text-white transform scale-110 shadow-pizza-200/50' : 'bg-white text-stone-400 border border-stone-200 hover:border-pizza-300 hover:text-pizza-500'}`}>{d.label}</button>
+                         </div>
+                         <div className="flex flex-wrap gap-2">
+                            {tagOptions.stations.filter(st => st.value !== '全體').map(st => (
+                                <button 
+                                    key={st.id} 
+                                    onClick={() => setEditStations(toggleArrayItem(editStations, st.value))}
+                                    className={`px-2 py-1 rounded text-xs border ${editStations.includes(st.value) ? 'bg-stone-800 text-white' : 'bg-white text-stone-500 border-stone-200'}`}
+                                >
+                                    {st.value}
+                                </button>
                             ))}
-                        </div>
-                        <p className="text-center text-[10px] text-stone-400 mt-3 font-bold">{selectedWeekDays.length === 0 ? '目前設定：每日重複 (依照有效期間)' : '目前設定：每週重複指定星期'}</p>
+                         </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-stone-100">
-                        <div>
-                            <label className="block text-xs font-bold uppercase text-stone-500 mb-3 tracking-widest">目標職等</label>
-                            <div className="flex gap-2 flex-wrap">
-                                {roleTags.map(tag => (
-                                    <button key={tag.id} onClick={() => { if (targetRoles.includes(tag.value)) setTargetRoles(targetRoles.filter(x => x !== tag.value)); else setTargetRoles([...targetRoles, tag.value]); }} className={`px-4 py-2 rounded-full border text-xs font-bold transition-all ${targetRoles.includes(tag.value) ? 'bg-pizza-500 text-white border-pizza-500 shadow-md' : 'bg-white border-stone-200 text-stone-500 hover:border-stone-300'}`}>{tag.value}</button>
-                                ))}
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold uppercase text-stone-500 mb-3 tracking-widest">目標站區</label>
-                            <div className="flex gap-2 flex-wrap">
-                                {stationTags.map(tag => (
-                                    <button key={tag.id} onClick={() => { if (targetStations.includes(tag.value)) setTargetStations(targetStations.filter(x => x !== tag.value)); else setTargetStations([...targetStations, tag.value]); }} className={`px-4 py-2 rounded-full border text-xs font-bold transition-all ${targetStations.includes(tag.value) ? 'bg-sky-500 text-white border-sky-500 shadow-md' : 'bg-white border-stone-200 text-stone-500 hover:border-stone-300'}`}>{tag.value}</button>
-                                ))}
-                            </div>
-                        </div>
+                </div>
+
+                <CustomToolbar 
+                    onImage={() => setMediaModal({ isOpen: true })} 
+                />
+                <ReactQuill 
+                    ref={quillRef}
+                    theme="snow"
+                    value={editorHtml}
+                    onChange={setEditorHtml}
+                    modules={modules}
+                    className="h-[50vh]"
+                />
+                <div className="h-24 bg-white"></div>
+                
+                {/* Sheet Editor */}
+                 <div className="p-8 border-t border-stone-100 bg-white">
+                    <SheetEditor data={sheetData} onChange={setSheetData} />
+                </div>
+                <div className="h-24"></div>
+            </div>
+        ) : (
+            <div className="glass-panel p-12 rounded-3xl min-h-[60vh] bg-white shadow-xl">
+                <div className="ql-editor" dangerouslySetInnerHTML={{ __html: editorHtml }} />
+                
+                {sheetData.length > 0 && sheetData.some(r=>r.some(c=>c.trim())) && (
+                    <div className="mt-12 border-t border-stone-100 pt-8">
+                        <h3 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-4">相關表格</h3>
+                        <SheetEditor data={sheetData} onChange={()=>{}} readOnly />
                     </div>
+                )}
+                
+                {(!editorHtml || editorHtml === '<p><br></p>') && (!sheetData.length || !sheetData.some(r=>r.some(c=>c.trim()))) && <div className="text-center text-stone-300 py-20">尚無內容</div>}
+            </div>
+        )}
+
+        {isEditMode && (
+            <div className="fixed bottom-8 right-8 z-50 animate-fade-in">
+                <div className="flex gap-3">
+                    <button onClick={() => { setIsEditMode(false); setEditorHtml(convertBlocksToHtml(announcement.content || [])); }} className="px-6 py-4 bg-white text-stone-500 border border-stone-200 rounded-full shadow-lg font-bold text-sm uppercase tracking-widest hover:bg-stone-100">取消</button>
+                    <button onClick={handleSave} disabled={saving} className="texture-grain flex items-center gap-2 px-6 py-4 bg-stone-900 text-white rounded-full shadow-2xl hover:bg-pizza-500 font-bold text-sm uppercase tracking-widest transition-all">{saving ? '儲存中...' : '儲存變更'}</button>
                 </div>
             </div>
-        ) : null}
-
-        <div className="glass-panel p-8 md:p-12 rounded-3xl min-h-[40vh] bg-white shadow-xl relative z-0 border border-white">
-            {blocks.map((block, index) => {
-                let currentIndex = undefined;
-                if (block.type === 'number-list') currentIndex = listIndex++;
-                else listIndex = 1;
-
-                return (
-                    <div key={block.id} className="group relative">
-                        {canEdit && (
-                             <div className="absolute right-0 -top-8 flex gap-1 bg-white shadow-sm border border-stone-100 rounded-lg p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                                <Tooltip text="上移"><button onClick={() => moveBlock(index, 'up')} className="p-1 hover:bg-stone-100 rounded"><ChevronUpIcon/></button></Tooltip>
-                                <Tooltip text="下移"><button onClick={() => moveBlock(index, 'down')} className="p-1 hover:bg-stone-100 rounded"><ChevronDownIcon/></button></Tooltip>
-                                <Tooltip text="刪除"><button onClick={(e) => deleteBlock(block.id, e)} className="p-1 hover:bg-red-50 text-red-500 rounded"><TrashIcon className="w-4 h-4"/></button></Tooltip>
-                             </div>
-                        )}
-                        <BlockRenderer block={block} isEditing={canEdit} onUpdate={updateBlock} onUpdateProps={updateBlockProps} onConfirmAction={(msg, action) => { setConfirmState({ message: msg, onConfirm: () => { action(); setConfirmState(null); } }); }} indexContext={currentIndex} />
-                    </div>
-                );
-            })}
-            <div ref={bottomRef} className="h-10 w-full"></div>
-        </div>
-
-        {canEdit && (
-            <>
-                <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-2 mr-20">
-                    {lastSaved && <span className="text-[10px] font-bold text-stone-400 bg-white/80 px-2 py-1 rounded-md backdrop-blur-sm">已儲存: {lastSaved.toLocaleTimeString()}</span>}
-                    <button onClick={handleSave} disabled={saving} className="texture-grain flex items-center gap-2 px-6 py-4 bg-stone-900 text-white rounded-full shadow-2xl hover:bg-pizza-500 hover:scale-105 transition-all font-bold text-sm uppercase tracking-widest">
-                        {saving ? '...' : <><SaveIcon /> 儲存公告</>}
-                    </button>
-                </div>
-
-                <div className="mt-12 space-y-8">
-                    <div className="glass-panel p-8 rounded-3xl bg-white/60">
-                        <h3 className="text-sm font-bold text-stone-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <span className="w-2 h-2 bg-stone-800 rounded-full"></span>
-                            相關人員 ({targetPersonnelList.length})
-                        </h3>
-                        {targetPersonnelList.length === 0 ? (
-                            <p className="text-stone-400 text-xs font-serif text-center py-4">無相關人員</p>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-left text-stone-600">
-                                    <thead className="text-xs text-stone-400 uppercase bg-stone-50 border-b border-stone-100">
-                                        <tr>
-                                            <th className="px-6 py-3 rounded-tl-lg">姓名</th>
-                                            <th className="px-6 py-3">職稱</th>
-                                            <th className="px-6 py-3">閱讀時間</th>
-                                            <th className="px-6 py-3">歷時</th>
-                                            <th className="px-6 py-3 text-center">確認</th>
-                                            <th className="px-6 py-3 rounded-tr-lg">確認資訊</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {targetPersonnelList.map(p => {
-                                            const isRead = !!p.readRecord;
-                                            const isConfirmed = !!p.readRecord?.is_confirmed;
-                                            let rowBgClass = 'bg-red-50 hover:bg-red-100';
-                                            if (isConfirmed) rowBgClass = 'bg-blue-50 hover:bg-blue-100';
-                                            else if (isRead) rowBgClass = 'bg-emerald-50 hover:bg-emerald-100';
-
-                                            const createdDate = announcement?.created_at || announcement?.start_date || '';
-                                            const readDate = p.readRecord?.read_at;
-                                            const timeTaken = (isRead && readDate && createdDate) ? calculateTimeTaken(createdDate, readDate) : '-';
-
-                                            return (
-                                                <tr key={p.id} className={`${rowBgClass} border-b border-white/50 transition-colors`}>
-                                                    <td className="px-6 py-4 font-bold text-stone-800">{p.name}</td>
-                                                    <td className="px-6 py-4 text-xs text-stone-500">{p.jobTitle}</td>
-                                                    <td className="px-6 py-4 font-mono text-xs text-stone-500">{isRead ? new Date(readDate!).toLocaleString() : '-'}</td>
-                                                    <td className="px-6 py-4 font-mono text-xs text-stone-500">{timeTaken}</td>
-                                                    <td className="px-6 py-4 text-center">
-                                                        {isRead ? <input type="checkbox" checked={!!p.readRecord?.is_confirmed} onChange={(e) => handleConfirmRead(p.id, e.target.checked)} className="h-5 w-5 rounded border-stone-300 text-pizza-500 focus:ring-pizza-500 cursor-pointer"/> : <span className="text-stone-300">-</span>}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-xs">
-                                                        {p.readRecord?.is_confirmed ? (<div className="flex flex-col"><span className="font-bold text-pizza-600">由 {p.readRecord.confirmed_by}</span><span className="text-stone-400 font-mono text-[10px]">{new Date(p.readRecord.confirmed_at!).toLocaleString()}</span></div>) : <span className="text-stone-300">-</span>}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </>
         )}
     </div>
   );

@@ -82,10 +82,13 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                 .select('announcement_id, is_confirmed')
                 .eq('personnel_id', user.id);
             
-            const confirmedMap = new Set(readsData?.filter((r: any) => r.is_confirmed).map((r: any) => r.announcement_id));
+            const confirmedMap = new Set((readsData || []).filter((r: any) => r.is_confirmed).map((r: any) => r.announcement_id));
 
             if (annosData) {
                 const activeAnnos = (annosData as Announcement[]).filter(a => {
+                    // 0. Global End Date Check (Fix: Ensure expired announcements disappear)
+                    if (a.end_date && todayStr > a.end_date) return false;
+
                     // 1. Role Check
                     const roleMatch = (a.target_roles || []).some(r => {
                         const rTrimmed = r.trim();
@@ -109,7 +112,7 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                     if (a.cycle_type === 'monthly') {
                         if (currentDayOfMonth !== 1) cycleMatch = false;
                     } else if (a.cycle_type === 'fixed') {
-                        if (a.end_date && todayStr > a.end_date) cycleMatch = false;
+                        // Fixed date check is already handled by global end_date check above
                     } else if (a.cycle_type.startsWith('weekly')) {
                         if (a.cycle_type.includes(':')) {
                              const daysStr = a.cycle_type.split(':')[1];
@@ -211,7 +214,7 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
         setCurrentPage(1);
     }, [activeTab]);
 
-    const isUserRole = user?.role === 'user';
+    const isUserRole = (user && user.role) === 'user';
 
     return (
         <div className="min-h-screen bg-transparent text-stone-900 font-sans relative flex flex-col">
@@ -345,7 +348,7 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                 <div className={`grid gap-6 w-full max-w-4xl px-4 ${isUserRole ? 'grid-cols-1 justify-items-center' : 'grid-cols-1 md:grid-cols-2'}`}>
                     
                     {isUserRole ? (
-                         <Link to={`/personnel/${user?.id}`} className="texture-grain group relative overflow-hidden rounded-full bg-white border-stone-200 border p-6 transition-all hover:bg-stone-50 hover:shadow-xl hover:shadow-orange-200/30 hover:scale-[1.02] w-full max-w-lg flex items-center justify-between px-10 shadow-md">
+                         <Link to={`/personnel/${user && user.id}`} className="texture-grain group relative overflow-hidden rounded-full bg-white border-stone-200 border p-6 transition-all hover:bg-stone-50 hover:shadow-xl hover:shadow-orange-200/30 hover:scale-[1.02] w-full max-w-lg flex items-center justify-between px-10 shadow-md">
                             <span className="text-xl font-bold text-stone-800 tracking-wide font-sans">進入我的學習</span>
                             <span className="text-orange-500 font-bold text-2xl group-hover:translate-x-2 transition-transform duration-300">→</span>
                         </Link>
@@ -373,7 +376,7 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                                 </div>
                             </Link>
                             
-                             {user?.role === 'admin' && (
+                             {(user && user.role === 'admin') && (
                                 <Link to="/announcement-list" className="md:col-span-2 texture-grain group relative overflow-hidden rounded-[2rem] bg-white border border-stone-200 p-6 md:p-8 transition-all hover:bg-stone-50 hover:shadow-xl hover:shadow-purple-200/50 hover:scale-[1.01] shadow-lg flex items-center justify-between">
                                     <div>
                                         <h3 className="text-xl md:text-2xl font-dela text-stone-800 mb-1">公告管理</h3>

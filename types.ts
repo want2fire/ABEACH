@@ -8,8 +8,8 @@ export interface TagData {
   category?: string; // To distinguish between different tag types in DB
 }
 
-// SOP Block Types
-export type BlockType = 'text' | 'heading-1' | 'heading-2' | 'heading-3' | 'bullet-list' | 'number-list' | 'image' | 'video' | 'callout' | 'divider' | 'table' | 'pdf' | 'toggle';
+// SOP Block Types - Added 'richtext' for Word-like editor
+export type BlockType = 'text' | 'heading-1' | 'heading-2' | 'heading-3' | 'bullet-list' | 'number-list' | 'image' | 'video' | 'callout' | 'divider' | 'table' | 'pdf' | 'toggle' | 'richtext';
 
 export interface SOPBlock {
   id: string;
@@ -20,6 +20,7 @@ export interface SOPBlock {
     align?: 'left' | 'center' | 'right';
     caption?: string;
     details?: string; // For toggle block hidden content
+    fontFamily?: string; // Font family for the block
   };
 }
 
