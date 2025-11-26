@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { type Announcement, type TagData } from '../types';
@@ -149,8 +149,14 @@ const AnnouncementListPage: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const navigate = useNavigate();
   
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Selection State
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+
   // Delete State
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; type: 'anno' | 'tag' } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string | string[]; type: 'anno' | 'tag' } | null>(null);
   
   // Tag Management
   const [activeTab, setActiveTab] = useState<TabType>('content');
@@ -223,6 +229,11 @@ const AnnouncementListPage: React.FC = () => {
       e.stopPropagation();
       setDeleteTarget({ id, type });
   };
+  
+  const handleBatchDeleteClick = () => {
+      if (selectedItems.size === 0) return;
+      setDeleteTarget({ id: Array.from(selectedItems), type: 'anno' });
+  };
 
   const executeDelete = async () => {
       if (!deleteTarget) return;
@@ -230,10 +241,18 @@ const AnnouncementListPage: React.FC = () => {
 
       let error = null;
       if (type === 'anno') {
-          const { error: err } = await supabase.from('announcements').delete().eq('id', id);
-          error = err;
+          if (Array.isArray(id)) {
+              // Batch delete
+              const { error: err } = await supabase.from('announcements').delete().in('id', id);
+              error = err;
+          } else {
+              // Single delete
+              const { error: err } = await supabase.from('announcements').delete().eq('id', id);
+              error = err;
+          }
       } else {
-          const { error: err } = await supabase.from('tags').delete().eq('id', id);
+          // Tag delete
+          const { error: err } = await supabase.from('tags').delete().eq('id', id as string);
           error = err;
       }
 
@@ -241,7 +260,8 @@ const AnnouncementListPage: React.FC = () => {
           alert(`刪除失敗：${error.message}`);
       } else {
           fetchData();
-          if (type === 'tag') setEditingTag(null); // Close edit modal if deleted
+          if (type === 'tag') setEditingTag(null);
+          setSelectedItems(new Set()); // Clear selection
       }
       setDeleteTarget(null);
   };
@@ -268,10 +288,39 @@ const AnnouncementListPage: React.FC = () => {
       if (error) alert('更新失敗: ' + error.message);
       else fetchData();
   };
+  
+  // Selection Logic
+  const handleToggleSelect = (id: string) => {
+      setSelectedItems(prev => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          return next;
+      });
+  };
+  
+  const handleSelectAll = () => {
+      if (selectedItems.size === filteredAnnos.length) {
+          setSelectedItems(new Set());
+      } else {
+          setSelectedItems(new Set(filteredAnnos.map(a => a.id)));
+      }
+  };
 
   if (loading) return <div className="p-10 text-center text-stone-500 font-bold">載入中...</div>;
 
   const currentTags = allTags.filter(t => t.category === TAB_CONFIG[activeTab].dbCategory);
+  
+  const filteredAnnos = announcements.filter(a => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+          a.title.toLowerCase().includes(q) ||
+          a.category.toLowerCase().includes(q) ||
+          (a.target_roles || []).some(r => r.toLowerCase().includes(q)) ||
+          (a.target_stations || []).some(s => s.toLowerCase().includes(q))
+      );
+  });
 
   return (
     <div className="container mx-auto p-6 sm:p-10 relative">
@@ -279,7 +328,13 @@ const AnnouncementListPage: React.FC = () => {
             isOpen={!!deleteTarget}
             onClose={() => setDeleteTarget(null)}
             onConfirm={executeDelete}
-            title={deleteTarget?.type === 'anno' ? '確定刪除此公告？此動作無法復原。' : '確定刪除此標籤？'}
+            title={
+                deleteTarget?.type === 'anno' 
+                    ? Array.isArray(deleteTarget.id) 
+                        ? `確定刪除選取的 ${deleteTarget.id.length} 筆公告？此動作無法復原。`
+                        : '確定刪除此公告？此動作無法復原。' 
+                    : '確定刪除此標籤？'
+            }
         />
 
         <EditTagModal 
@@ -290,23 +345,54 @@ const AnnouncementListPage: React.FC = () => {
             onDelete={(id, e) => handleDeleteClick(id, 'tag', e)}
         />
 
-        <div className="flex justify-between items-center mb-10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
                 <Link to="/" className="text-xs font-bold text-stone-400 hover:text-pizza-500 uppercase tracking-widest mb-2 block">← 返回首頁</Link>
                 <h1 className="text-4xl font-playfair font-bold text-stone-900">公告管理</h1>
             </div>
-            <button 
-                onClick={createAnno} 
-                disabled={isCreating}
-                className={`texture-grain px-6 py-3 bg-stone-900 text-white rounded-full font-bold uppercase text-xs tracking-widest hover:bg-pizza-500 hover:scale-105 transition-all shadow-lg flex items-center gap-2 ${isCreating ? 'opacity-70 cursor-wait' : ''}`}
-            >
-                {isCreating ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                    <PlusIcon className="w-4 h-4"/>
-                )}
-                {isCreating ? '處理中...' : '新增公告'}
-            </button>
+            
+            <div className="flex gap-3 w-full md:w-auto">
+                <button 
+                    onClick={createAnno} 
+                    disabled={isCreating}
+                    className={`texture-grain flex-1 md:flex-none px-6 py-3 bg-stone-900 text-white rounded-full font-bold uppercase text-xs tracking-widest hover:bg-pizza-500 hover:scale-105 transition-all shadow-lg flex items-center justify-center gap-2 ${isCreating ? 'opacity-70 cursor-wait' : ''}`}
+                >
+                    {isCreating ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                        <PlusIcon className="w-4 h-4"/>
+                    )}
+                    {isCreating ? '處理中...' : '新增公告'}
+                </button>
+            </div>
+        </div>
+        
+        {/* Search & Bulk Actions Bar */}
+        <div className="mb-6 p-2 bg-stone-100 rounded-2xl flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="relative w-full sm:w-80">
+                <input 
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="搜尋公告..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border-none bg-white text-sm font-bold text-stone-700 focus:outline-none focus:ring-2 focus:ring-pizza-200 transition-all placeholder:text-stone-400 shadow-sm"
+                />
+                <svg className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+            
+            {selectedItems.size > 0 && (
+                <div className="flex items-center gap-4 px-2 animate-fade-in w-full sm:w-auto justify-between sm:justify-end">
+                    <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">已選取 {selectedItems.size} 筆</span>
+                    <button 
+                        onClick={handleBatchDeleteClick}
+                        className="px-4 py-2 bg-red-100 text-red-600 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-red-200 transition-colors flex items-center gap-2"
+                    >
+                        <TrashIcon className="w-4 h-4"/> 刪除選取
+                    </button>
+                </div>
+            )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -352,29 +438,61 @@ const AnnouncementListPage: React.FC = () => {
 
             {/* Right: List */}
             <div className="md:col-span-2 space-y-4">
-                {announcements.map(a => (
-                    <div key={a.id} className="glass-card p-6 rounded-2xl border border-white hover:border-pizza-300 bg-white/60 cursor-pointer group relative" onClick={() => navigate(`/announcement/${a.id}`)}>
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <h3 className="text-lg font-bold text-stone-800 mb-2 group-hover:text-pizza-600 transition-colors">{a.title}</h3>
-                                <div className="flex gap-2 flex-wrap">
-                                    <span className="px-2 py-0.5 bg-stone-100 text-stone-500 text-[10px] font-bold uppercase rounded">
-                                        {a.cycle_type && a.cycle_type.startsWith('weekly') ? '每週重複' : a.cycle_type === 'monthly' ? '每月1號' : a.cycle_type === 'fixed' ? '指定日期' : '每日'}
-                                    </span>
-                                    <span className="px-2 py-0.5 bg-sky-50 text-sky-600 text-[10px] font-bold uppercase rounded">{a.category}</span>
-                                    {a.target_stations?.map(s => <span key={s} className="px-2 py-0.5 bg-stone-50 text-stone-400 text-[10px] rounded">{s}</span>)}
+                {/* Select All Header */}
+                <div className="flex items-center gap-3 px-4 mb-2">
+                     <input 
+                        type="checkbox" 
+                        checked={filteredAnnos.length > 0 && selectedItems.size === filteredAnnos.length}
+                        onChange={handleSelectAll}
+                        className="w-5 h-5 rounded border-stone-300 text-pizza-500 focus:ring-pizza-500 cursor-pointer"
+                     />
+                     <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">全選</span>
+                </div>
+
+                {filteredAnnos.map(a => (
+                    <div key={a.id} className="glass-card p-4 sm:p-6 rounded-2xl border border-white hover:border-pizza-300 bg-white/60 group relative flex gap-4 items-start" >
+                        
+                        {/* Checkbox */}
+                        <div className="pt-1">
+                             <input 
+                                type="checkbox" 
+                                checked={selectedItems.has(a.id)}
+                                onChange={() => handleToggleSelect(a.id)}
+                                className="w-5 h-5 rounded border-stone-300 text-pizza-500 focus:ring-pizza-500 cursor-pointer"
+                             />
+                        </div>
+
+                        <div className="flex-grow cursor-pointer" onClick={() => navigate(`/announcement/${a.id}`)}>
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h3 className="text-lg font-bold text-stone-800 mb-2 group-hover:text-pizza-600 transition-colors">{a.title}</h3>
+                                    <div className="flex gap-2 flex-wrap">
+                                        <span className="px-2 py-0.5 bg-stone-100 text-stone-500 text-[10px] font-bold uppercase rounded">
+                                            {a.cycle_type && a.cycle_type.startsWith('weekly') ? '每週重複' : a.cycle_type === 'monthly' ? '每月1號' : a.cycle_type === 'fixed' ? '指定日期' : '每日'}
+                                        </span>
+                                        <span className="px-2 py-0.5 bg-sky-50 text-sky-600 text-[10px] font-bold uppercase rounded">{a.category}</span>
+                                        {a.target_stations?.map(s => <span key={s} className="px-2 py-0.5 bg-stone-50 text-stone-400 text-[10px] rounded">{s}</span>)}
+                                    </div>
                                 </div>
+                                {/* Delete Button - Stops propagation to allow checkbox/navigation separation */}
+                                <button 
+                                    onClick={(e) => handleDeleteClick(a.id, 'anno', e)} 
+                                    className="text-stone-300 hover:text-red-500 p-2 transition-colors rounded-full hover:bg-red-50 z-10"
+                                >
+                                    <TrashIcon className="w-5 h-5"/>
+                                </button>
                             </div>
-                            <button 
-                                onClick={(e) => handleDeleteClick(a.id, 'anno', e)} 
-                                className="absolute top-4 right-4 z-50 text-stone-300 hover:text-red-500 p-2 transition-colors rounded-full hover:bg-red-50"
-                            >
-                                <TrashIcon className="w-5 h-5"/>
-                            </button>
                         </div>
                     </div>
                 ))}
-                {announcements.length === 0 && <p className="text-stone-400 text-center py-10 font-serif">尚無公告</p>}
+                
+                {filteredAnnos.length === 0 && (
+                    <div className="glass-card p-10 text-center rounded-2xl border border-white bg-white/40">
+                         <p className="text-stone-400 font-serif">
+                             {searchQuery ? '找不到符合的公告' : '尚無公告'}
+                         </p>
+                    </div>
+                )}
             </div>
         </div>
     </div>

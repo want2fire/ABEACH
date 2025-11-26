@@ -38,7 +38,11 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
     const [quoteIndex, setQuoteIndex] = useState(0);
     const [activeTab, setActiveTab] = useState<TabType>('today');
     
+    // Search State
+    const [searchQuery, setSearchQuery] = useState('');
+    
     // Announcement Lists
+    const [allAnnos, setAllAnnos] = useState<AnnouncementWithStatus[]>([]);
     const [todayAnnos, setTodayAnnos] = useState<AnnouncementWithStatus[]>([]);
     const [weekAnnos, setWeekAnnos] = useState<AnnouncementWithStatus[]>([]);
     const [monthAnnos, setMonthAnnos] = useState<AnnouncementWithStatus[]>([]);
@@ -128,6 +132,27 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                     ...a,
                     is_confirmed: confirmedMap.has(a.id)
                 }));
+                
+                // Sorting Logic:
+                const sorter = (a: AnnouncementWithStatus, b: AnnouncementWithStatus) => {
+                    // Priority 1: Unconfirmed at top
+                    if (a.is_confirmed !== b.is_confirmed) {
+                        return a.is_confirmed ? 1 : -1;
+                    }
+                    
+                    // Priority 2: Created Today (NEW!) at top (only if confirmation status is same)
+                    const isANew = isCreatedToday(a.created_at);
+                    const isBNew = isCreatedToday(b.created_at);
+                    if (isANew !== isBNew) {
+                        return isANew ? -1 : 1;
+                    }
+
+                    // Priority 3: Start Date
+                    return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
+                };
+                
+                activeAnnos.sort(sorter);
+                setAllAnnos(activeAnnos);
 
                 // Categorize Logic
                 const todayList: AnnouncementWithStatus[] = [];
@@ -162,30 +187,9 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                     }
                 });
 
-                // Sorting Logic:
-                // 1. Unconfirmed First
-                // 2. New (Created Today) First
-                // 3. Start Date (Newest First)
-                const sorter = (a: AnnouncementWithStatus, b: AnnouncementWithStatus) => {
-                    // Priority 1: Unconfirmed at top
-                    if (a.is_confirmed !== b.is_confirmed) {
-                        return a.is_confirmed ? 1 : -1;
-                    }
-                    
-                    // Priority 2: Created Today (NEW!) at top (only if confirmation status is same)
-                    const isANew = isCreatedToday(a.created_at);
-                    const isBNew = isCreatedToday(b.created_at);
-                    if (isANew !== isBNew) {
-                        return isANew ? -1 : 1;
-                    }
-
-                    // Priority 3: Start Date
-                    return new Date(b.start_date).getTime() - new Date(a.start_date).getTime();
-                };
-
-                setTodayAnnos(todayList.sort(sorter));
-                setWeekAnnos(weekList.sort(sorter));
-                setMonthAnnos(monthList.sort(sorter));
+                setTodayAnnos(todayList);
+                setWeekAnnos(weekList);
+                setMonthAnnos(monthList);
                 
                 // Determine default active tab
                 if (todayList.length > 0) setActiveTab('today');
@@ -198,6 +202,17 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
     }, [user]);
 
     const getCurrentList = () => {
+        // If searching, filter from ALL active announcements
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            return allAnnos.filter(a => 
+                a.title.toLowerCase().includes(query) ||
+                a.category.toLowerCase().includes(query) ||
+                (a.target_stations || []).some(s => s.toLowerCase().includes(query)) ||
+                (a.target_roles || []).some(r => r.toLowerCase().includes(query))
+            );
+        }
+
         switch(activeTab) {
             case 'today': return todayAnnos;
             case 'week': return weekAnnos;
@@ -212,7 +227,7 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [activeTab]);
+    }, [activeTab, searchQuery]);
 
     const isUserRole = (user && user.role) === 'user';
 
@@ -227,12 +242,42 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                     {/* Left: Content Area */}
                     <div className="flex-grow bg-white/90 backdrop-blur-md rounded-l-3xl rounded-tr-3xl shadow-xl border border-stone-200 min-h-[320px] relative z-10 flex flex-col">
                         {/* Header */}
-                        <div className="p-6 md:p-8 border-b border-stone-200 border-dashed flex justify-between items-baseline bg-stone-50/50 rounded-tl-3xl">
-                            <div className="flex items-center gap-4">
-                                <h2 className="text-3xl font-dela text-stone-800 tracking-wide">公告</h2>
-                                <span className="px-3 py-1 bg-stone-800 text-white text-xs font-bold rounded-full uppercase tracking-wider">
-                                    {activeTab === 'today' ? '本日' : activeTab === 'week' ? '本週' : '本月'}
-                                </span>
+                        <div className="p-6 md:p-8 border-b border-stone-200 border-dashed bg-stone-50/50 rounded-tl-3xl space-y-4">
+                            <div className="flex justify-between items-baseline">
+                                <div className="flex items-center gap-4">
+                                    <h2 className="text-3xl font-dela text-stone-800 tracking-wide">公告</h2>
+                                    {searchQuery ? (
+                                        <span className="px-3 py-1 bg-stone-800 text-white text-xs font-bold rounded-full uppercase tracking-wider">
+                                            搜尋結果: {currentList.length} 筆
+                                        </span>
+                                    ) : (
+                                        <span className="px-3 py-1 bg-stone-800 text-white text-xs font-bold rounded-full uppercase tracking-wider">
+                                            {activeTab === 'today' ? '本日' : activeTab === 'week' ? '本週' : '本月'}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            
+                            {/* Search Input */}
+                            <div className="relative">
+                                <input 
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="搜尋公告標題、標籤..."
+                                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-stone-200 bg-white text-sm font-bold text-stone-700 focus:outline-none focus:ring-2 focus:ring-pizza-200 transition-all placeholder:text-stone-400"
+                                />
+                                <svg className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                {searchQuery && (
+                                    <button 
+                                        onClick={() => setSearchQuery('')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -270,7 +315,9 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                                 ))
                             ) : (
                                 <div className="h-full flex flex-col items-center justify-center text-stone-400 opacity-60 py-10">
-                                    <p className="text-sm font-bold uppercase tracking-widest mb-2">暫無公告</p>
+                                    <p className="text-sm font-bold uppercase tracking-widest mb-2">
+                                        {searchQuery ? '找不到符合的公告' : '暫無公告'}
+                                    </p>
                                     <div className="w-8 h-1 bg-stone-200 rounded-full"></div>
                                 </div>
                             )}
@@ -307,10 +354,10 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                         ].map((tab) => (
                             <button
                                 key={tab.id}
-                                onClick={() => setActiveTab(tab.id as TabType)}
+                                onClick={() => { setActiveTab(tab.id as TabType); setSearchQuery(''); }}
                                 className={`
                                     writing-vertical-rl py-6 px-3 rounded-r-xl text-xs font-bold tracking-widest transition-all duration-300 shadow-md border-y border-r border-white/20
-                                    ${activeTab === tab.id 
+                                    ${activeTab === tab.id && !searchQuery
                                         ? `${tab.color} text-white translate-x-0 scale-110 z-20` 
                                         : 'bg-white/80 text-stone-400 hover:bg-stone-50 translate-x-[-2px] hover:translate-x-0 z-0'}
                                 `}
