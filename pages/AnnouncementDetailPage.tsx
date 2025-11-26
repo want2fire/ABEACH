@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
@@ -204,8 +203,8 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
             });
         }
 
-        // Fetch Personnel for Checklist
-        const { data: people } = await supabase.from('personnel').select('id, name, station').eq('status', '在職').order('station');
+        // Fetch ALL Personnel (to ensure we can resolve names for verifiers, even if they aren't '在職')
+        const { data: people } = await supabase.from('personnel').select('id, name, station, status').order('station');
         if (people) {
             setAllPersonnel(people.map((p:any) => ({...p, station: p.station || '未分配'})) as any);
         }
@@ -329,12 +328,7 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
             });
             setVerificationDetails(prev => {
                  const next = { ...prev };
-                 // Note: Reverting details exactly is hard without keeping previous state, 
-                 // but typically we can just clear it or refetch. 
-                 // For simplicity in this error case, we might want to refetch or just simple revert:
                  if (!verify) {
-                     // We tried to uncheck, so put it back (approximate, might be stale but ok for error revert)
-                     // Ideally we would fetch the old value first.
                  } else {
                      delete next[personnelId];
                  }
@@ -352,13 +346,15 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
         return `${year}-${month}-${day}`;
     };
 
-    // Calculate reading stats by station
+    // Calculate reading stats by station (Only Active Personnel)
     const personnelByStation = useMemo(() => {
         const grouped: Record<string, Personnel[]> = {};
         allPersonnel.forEach(p => {
-            const st = p.station || '未分配';
-            if (!grouped[st]) grouped[st] = [];
-            grouped[st].push(p);
+            if (p.status === '在職') {
+                const st = p.station || '未分配';
+                if (!grouped[st]) grouped[st] = [];
+                grouped[st].push(p);
+            }
         });
         return grouped;
     }, [allPersonnel]);
@@ -596,7 +592,7 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                                                         {isRead && (
                                                             <div className="flex items-center gap-2 shrink-0">
                                                                 {isVerified && vDetail && (
-                                                                    <div className="text-[9px] text-stone-400 text-right leading-tight hidden xs:block">
+                                                                    <div className="text-[9px] text-stone-400 text-right leading-tight min-w-fit">
                                                                         <div className="font-bold">{getVerifierName(vDetail.confirmedBy)}</div>
                                                                         <div>{new Date(vDetail.confirmedAt).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                                                                     </div>
