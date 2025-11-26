@@ -141,6 +141,7 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
     const [isConfirmed, setIsConfirmed] = useState(false);
     const [readCount, setReadCount] = useState(0);
     const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set());
+    const [managerVerifiedIds, setManagerVerifiedIds] = useState<Set<string>>(new Set());
     const [allPersonnel, setAllPersonnel] = useState<Personnel[]>([]);
 
     // Tags
@@ -208,13 +209,22 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
         }
 
         // Fetch Read Status
-        const { data: reads } = await supabase.from('announcement_reads').select('personnel_id, is_confirmed').eq('announcement_id', id).eq('is_confirmed', true);
+        const { data: reads } = await supabase.from('announcement_reads').select('*').eq('announcement_id', id);
+        
         if (reads) {
-            const ids = new Set<string>(reads.map((r: any) => r.personnel_id));
-            setConfirmedIds(ids);
-            setReadCount(ids.size);
+            const cIds = new Set<string>();
+            const vIds = new Set<string>();
             
-            if (ids.has(userId)) setIsConfirmed(true);
+            reads.forEach((r: any) => {
+                if (r.is_confirmed) cIds.add(r.personnel_id);
+                if (r.confirmed_by) vIds.add(r.personnel_id);
+            });
+            
+            setConfirmedIds(cIds);
+            setManagerVerifiedIds(vIds);
+            setReadCount(cIds.size);
+            
+            if (cIds.has(userId)) setIsConfirmed(true);
         }
 
         setLoading(false);
@@ -269,6 +279,34 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                 const newSet = new Set(prev);
                 newSet.add(userId);
                 return newSet;
+            });
+        }
+    };
+
+    const handleManagerVerify = async (personnelId: string, verify: boolean) => {
+        if (!id) return;
+        
+        // Optimistic update
+        setManagerVerifiedIds(prev => {
+            const next = new Set(prev);
+            if (verify) next.add(personnelId);
+            else next.delete(personnelId);
+            return next;
+        });
+
+        const { error } = await supabase.from('announcement_reads').update({
+            confirmed_by: verify ? userId : null,
+            confirmed_at: verify ? new Date().toISOString() : null
+        }).eq('announcement_id', id).eq('personnel_id', personnelId);
+
+        if (error) {
+            alert('更新失敗: ' + error.message);
+            // Revert
+            setManagerVerifiedIds(prev => {
+                const next = new Set(prev);
+                if (!verify) next.add(personnelId);
+                else next.delete(personnelId);
+                return next;
             });
         }
     };
@@ -485,6 +523,7 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                                 <div className="flex gap-4 text-xs font-bold">
                                     <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500"></div> 已讀</div>
                                     <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-stone-300"></div> 未讀</div>
+                                    <div className="flex items-center gap-2"><div className="w-3 h-3 border border-blue-500 rounded bg-white flex items-center justify-center"><div className="w-1.5 h-1.5 bg-blue-500 rounded-sm"></div></div> 主管確認</div>
                                 </div>
                             </div>
 
@@ -495,19 +534,32 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                             {people.map(p => {
                                                 const isRead = confirmedIds.has(p.id);
+                                                const isVerified = managerVerifiedIds.has(p.id);
                                                 return (
                                                     <div 
                                                         key={p.id} 
-                                                        className={`px-3 py-2 rounded-lg border flex items-center gap-3 transition-colors ${
+                                                        className={`px-3 py-2 rounded-lg border flex items-center justify-between gap-2 transition-colors ${
                                                             isRead 
                                                                 ? 'bg-green-50 border-green-200' 
                                                                 : 'bg-white border-stone-200 opacity-70'
                                                         }`}
                                                     >
-                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${isRead ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-stone-300'}`}>
-                                                            {isRead && <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            <div className={`shrink-0 w-4 h-4 rounded border flex items-center justify-center ${isRead ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-stone-300'}`}>
+                                                                {isRead && <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                                                            </div>
+                                                            <span className={`text-sm font-bold truncate ${isRead ? 'text-green-800' : 'text-stone-500'}`}>{p.name}</span>
                                                         </div>
-                                                        <span className={`text-sm font-bold ${isRead ? 'text-green-800' : 'text-stone-500'}`}>{p.name}</span>
+                                                        
+                                                        {isRead && (
+                                                            <input 
+                                                                type="checkbox"
+                                                                checked={isVerified}
+                                                                onChange={(e) => handleManagerVerify(p.id, e.target.checked)}
+                                                                className="shrink-0 w-4 h-4 rounded border-stone-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                                                title="主管確認"
+                                                            />
+                                                        )}
                                                     </div>
                                                 );
                                             })}
