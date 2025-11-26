@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { type Announcement, type SOPBlock, type UserRole, type TagData, type Personnel } from '../types';
@@ -114,7 +114,7 @@ const convertBlocksToHtml = (blocks: SOPBlock[]): string => {
 
 // Sheet Editor Component
 const SheetEditor: React.FC<{ data: string[][], onChange: (data: string[][]) => void, readOnly?: boolean }> = ({ data, onChange, readOnly }) => {
-    const grid = data.length > 0 ? data : [['', '', ''], ['', '', ''], ['', '', '']];
+    const grid = Array.isArray(data) && data.length > 0 ? data : [['', '', ''], ['', '', ''], ['', '', '']];
 
     const handleCellChange = (r: number, c: number, value: string) => {
         const newGrid = grid.map((row, ri) => ri === r ? row.map((col, ci) => ci === c ? value : col) : row);
@@ -187,7 +187,7 @@ const SheetEditor: React.FC<{ data: string[][], onChange: (data: string[][]) => 
 };
 
 interface DetailedReadStatus {
-    id: string; // Personnel ID
+    id: string; 
     name: string;
     jobTitle: string;
     readAt: string | null;
@@ -221,7 +221,6 @@ const ReadStatusModal: React.FC<{
                 </div>
                 <div className="flex-1 overflow-y-auto p-6">
                     <div className="space-y-8">
-                        {/* Unread Section */}
                         <div>
                             <h4 className="flex items-center gap-2 text-sm font-bold text-stone-500 uppercase tracking-widest mb-4">
                                 <span className="w-2 h-2 rounded-full bg-red-500"></span>
@@ -243,7 +242,6 @@ const ReadStatusModal: React.FC<{
                             </div>
                         </div>
 
-                        {/* Read Section */}
                         <div>
                             <h4 className="flex items-center gap-2 text-sm font-bold text-stone-500 uppercase tracking-widest mb-4">
                                 <span className="w-2 h-2 rounded-full bg-green-500"></span>
@@ -409,8 +407,9 @@ const MediaModal: React.FC<{
     );
 };
 
-const CustomToolbar = ({ onImage }: { onImage: () => void }) => (
-    <div id="toolbar" className="flex flex-wrap items-center gap-1 sticky top-0 z-20 bg-[#f5f5f4] border-b border-[#e7e5e4] px-2 py-2 rounded-t-2xl">
+// Toolbar defined clearly outside and memoized to prevent re-renders
+const CustomToolbar = React.memo(({ onImage }: { onImage: () => void }) => (
+    <div id="anno-toolbar" className="flex flex-wrap items-center gap-1 sticky top-0 z-20 bg-[#f5f5f4] border-b border-[#e7e5e4] px-2 py-2 rounded-t-2xl">
       <select className="ql-header" defaultValue="" onChange={e => e.persist()} title="標題">
         <option value="1" /><option value="2" /><option value="" />
       </select>
@@ -432,7 +431,7 @@ const CustomToolbar = ({ onImage }: { onImage: () => void }) => (
       </button>
       <button className="ql-clean" title="清除格式" />
     </div>
-);
+));
 
 interface AnnouncementDetailPageProps {
     userRole: UserRole;
@@ -468,15 +467,6 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
   
   // Tags
   const [tagOptions, setTagOptions] = useState<{categories: TagData[], jobs: TagData[], stations: TagData[]}>({categories:[], jobs:[], stations:[]});
-
-  const modules = useMemo(() => ({
-    toolbar: {
-      container: "#toolbar",
-    },
-    clipboard: {
-        matchVisual: false
-    }
-  }), []);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -515,7 +505,12 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
         // Extract Sheet
         const tableBlock = (data.content || []).find((b: SOPBlock) => b.type === 'table');
         if(tableBlock) {
-             try { setSheetData(JSON.parse(tableBlock.content)); } catch(e) { setSheetData([]); }
+             try { 
+                 const parsed = JSON.parse(tableBlock.content);
+                 setSheetData(Array.isArray(parsed) ? parsed : []);
+             } catch(e) { 
+                 setSheetData([]); 
+             }
         }
 
         // Init Edit State
@@ -536,7 +531,7 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
 
   const canManage = ['admin', 'duty'].includes(userRole);
 
-  const fetchReadStats = async () => {
+  const fetchReadStats = useCallback(async () => {
       if (!canManage || !id || !announcement) return;
 
       const { data: peopleData } = await supabase.from('personnel').select('*').eq('status', '在職');
@@ -594,11 +589,11 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
       });
 
       setReadStats({ read, unread });
-  };
+  }, [id, announcement, canManage]);
 
   useEffect(() => {
       fetchReadStats();
-  }, [canManage, id, announcement, showReadModal]); // Re-fetch when modal opens
+  }, [showReadModal, fetchReadStats]); // Re-fetch when modal opens
 
   const handleSave = async () => {
     if (!id) return;
@@ -646,7 +641,6 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
   const handleConfirmRead = async () => {
       if (!id || !userId) return;
       try {
-          // Robust duplicate check
           const { data: existing } = await supabase
             .from('announcement_reads')
             .select('id')
@@ -661,8 +655,6 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                   announcement_id: id,
                   personnel_id: userId,
                   read_at: now,
-                  // NOTE: We do NOT set is_confirmed here. 
-                  // is_confirmed is for Manager Verification.
                   is_confirmed: false 
              });
              if (error) throw error;
@@ -683,14 +675,7 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
   const handleVerifyPersonnel = async (personnelId: string, isConfirmed: boolean) => {
       if (!id) return;
       try {
-          // If verifying, we need to ensure a record exists (in case admin checks before user reads, though logic puts them in unread list usually)
-          // But based on logic, only people in "Read" list are displayed in table to be confirmed usually? 
-          // Current logic: unread are separate. Manager usually confirms people who HAVE read.
-          // But if manager wants to force confirm someone? 
-          // Let's stick to updating existing record for simplicity, assuming they are in the 'Read' list or we upsert.
-          
           const now = new Date().toISOString();
-          
           const updateData = {
               is_confirmed: isConfirmed,
               confirmed_at: isConfirmed ? now : null,
@@ -703,8 +688,6 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
              .eq('personnel_id', personnelId);
              
           if (error) throw error;
-          
-          // Refresh stats
           fetchReadStats();
       } catch (e: any) {
           alert('更新失敗: ' + e.message);
@@ -718,9 +701,20 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
       quill.insertEmbed(range.index, 'image', url);
   };
 
+  // Memoize handler to prevent toolbar re-renders
+  const handleImageClick = useCallback(() => {
+      setMediaModal({ isOpen: true });
+  }, []);
+
   const toggleArrayItem = (arr: string[], item: string) => {
       return arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item];
   };
+
+  // Define modules here with useMemo to ensure stability across renders
+  const modules = useMemo(() => ({
+      toolbar: { container: "#anno-toolbar" },
+      clipboard: { matchVisual: false }
+  }), []);
 
   if (loading || !announcement) return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-50/90 backdrop-blur-sm">
@@ -792,52 +786,57 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
         </div>
 
         {isEditMode ? (
-            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-stone-200 animate-fade-in relative p-1">
+            <div className="animate-fade-in relative">
                 {/* Metadata Editor */}
-                <div className="p-6 bg-stone-50 border-b border-stone-100 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-stone-200 mb-6 p-6 bg-stone-50 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-2">基本設定</label>
                         <div className="grid grid-cols-2 gap-4">
-                            <select value={editCategory} onChange={e => setEditCategory(e.target.value)} className="glass-input px-3 py-2 rounded-lg w-full">
-                                {tagOptions.categories.map(c => <option key={c.id} value={c.value}>{c.value}</option>)}
-                            </select>
-                            <select value={editCycle} onChange={e => setEditCycle(e.target.value)} className="glass-input px-3 py-2 rounded-lg w-full">
-                                <option value="daily">每日</option>
-                                <option value="weekly:1">每週一</option>
-                                <option value="monthly">每月1號</option>
-                                <option value="fixed">指定日期</option>
-                            </select>
-                            <input type="date" value={editStartDate} onChange={e => setEditStartDate(e.target.value)} className="glass-input px-3 py-2 rounded-lg w-full" />
-                            
-                            <div className="flex gap-2">
-                                {editEndDate ? (
-                                    <input 
-                                        type="date" 
-                                        value={editEndDate} 
-                                        onChange={e => setEditEndDate(e.target.value)} 
-                                        className="glass-input px-3 py-2 rounded-lg w-full" 
-                                    />
-                                ) : (
-                                    <div className="glass-input px-3 py-2 rounded-lg w-full bg-stone-100 text-stone-400 font-bold flex items-center text-xs">
-                                        永久有效
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-stone-400 uppercase">分類</label>
+                                <select value={editCategory} onChange={e => setEditCategory(e.target.value)} className="glass-input px-3 py-2 rounded-lg w-full">
+                                    {tagOptions.categories.map(c => <option key={c.id} value={c.value}>{c.value}</option>)}
+                                </select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-stone-400 uppercase">循環頻率</label>
+                                <select value={editCycle} onChange={e => setEditCycle(e.target.value)} className="glass-input px-3 py-2 rounded-lg w-full">
+                                    <option value="daily">每日</option>
+                                    <option value="weekly:1">每週一</option>
+                                    <option value="monthly">每月1號</option>
+                                    <option value="fixed">指定日期</option>
+                                </select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-stone-400 uppercase">開始日期</label>
+                                <input type="date" value={editStartDate} onChange={e => setEditStartDate(e.target.value)} className="glass-input px-3 py-2 rounded-lg w-full" />
+                            </div>
+                            <div className="space-y-1">
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="text-[10px] font-bold text-stone-400 uppercase">結束日期</label>
+                                    <div className="flex items-center gap-1">
+                                        <input 
+                                            type="checkbox"
+                                            checked={!editEndDate}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setEditEndDate('');
+                                                } else {
+                                                    setEditEndDate(editStartDate || new Date().toISOString().split('T')[0]);
+                                                }
+                                            }}
+                                            className="w-3 h-3 rounded border-stone-300 text-pizza-500 focus:ring-pizza-500 cursor-pointer"
+                                        />
+                                        <span className="text-[10px] text-stone-500 font-bold">永久有效</span>
                                     </div>
-                                )}
-                                <label className="flex items-center gap-1 cursor-pointer whitespace-nowrap px-3 py-2 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={!editEndDate} 
-                                        onChange={(e) => {
-                                            if (e.target.checked) setEditEndDate('');
-                                            else {
-                                                const d = new Date(editStartDate || new Date());
-                                                d.setDate(d.getDate() + 7);
-                                                setEditEndDate(d.toISOString().split('T')[0]);
-                                            }
-                                        }}
-                                        className="w-4 h-4 rounded border-stone-300 text-pizza-500 focus:ring-pizza-500"
-                                    />
-                                    <span className="text-xs font-bold text-stone-600 select-none">永久</span>
-                                </label>
+                                </div>
+                                <input 
+                                    type="date" 
+                                    value={editEndDate} 
+                                    onChange={e => setEditEndDate(e.target.value)} 
+                                    disabled={!editEndDate}
+                                    className={`glass-input px-3 py-2 rounded-lg w-full ${!editEndDate ? 'opacity-50 bg-stone-100 cursor-not-allowed text-transparent' : ''}`} 
+                                />
                             </div>
                         </div>
                     </div>
@@ -847,6 +846,7 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                             {tagOptions.jobs.map(job => (
                                 <button 
                                     key={job.id} 
+                                    type="button"
                                     onClick={() => setEditRoles(toggleArrayItem(editRoles, job.value))}
                                     className={`px-2 py-1 rounded text-xs border ${editRoles.includes(job.value) ? 'bg-pizza-500 text-white border-pizza-500' : 'bg-white text-stone-500 border-stone-200'}`}
                                 >
@@ -858,6 +858,7 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                             {tagOptions.stations.filter(st => st.value !== '全體').map(st => (
                                 <button 
                                     key={st.id} 
+                                    type="button"
                                     onClick={() => setEditStations(toggleArrayItem(editStations, st.value))}
                                     className={`px-2 py-1 rounded text-xs border ${editStations.includes(st.value) ? 'bg-stone-800 text-white' : 'bg-white text-stone-500 border-stone-200'}`}
                                 >
@@ -868,24 +869,23 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                     </div>
                 </div>
 
-                <CustomToolbar 
-                    onImage={() => setMediaModal({ isOpen: true })} 
-                />
-                <ReactQuill 
-                    ref={quillRef}
-                    theme="snow"
-                    value={editorHtml}
-                    onChange={setEditorHtml}
-                    modules={modules}
-                    className="h-[50vh]"
-                />
-                <div className="h-24 bg-white"></div>
-                
-                {/* Sheet Editor */}
-                 <div className="p-8 border-t border-stone-100 bg-white">
-                    <SheetEditor data={sheetData} onChange={setSheetData} />
+                <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-stone-200 animate-fade-in relative p-1">
+                    <CustomToolbar onImage={handleImageClick} />
+                    <ReactQuill 
+                        ref={quillRef}
+                        theme="snow"
+                        value={editorHtml}
+                        onChange={setEditorHtml}
+                        modules={modules}
+                        className="h-[50vh]"
+                    />
+                    <div className="h-24 bg-white"></div>
+                    
+                    <div className="p-8 border-t border-stone-100 bg-white">
+                        <SheetEditor data={sheetData} onChange={setSheetData} />
+                    </div>
+                    <div className="h-24"></div>
                 </div>
-                <div className="h-24"></div>
             </div>
         ) : (
             <div className="glass-panel p-12 rounded-3xl min-h-[60vh] bg-white shadow-xl">
