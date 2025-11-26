@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
@@ -142,6 +143,7 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
     const [readCount, setReadCount] = useState(0);
     const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set());
     const [managerVerifiedIds, setManagerVerifiedIds] = useState<Set<string>>(new Set());
+    const [verificationDetails, setVerificationDetails] = useState<Record<string, { confirmedBy: string, confirmedAt: string }>>({});
     const [allPersonnel, setAllPersonnel] = useState<Personnel[]>([]);
 
     // Tags
@@ -214,14 +216,19 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
         if (reads) {
             const cIds = new Set<string>();
             const vIds = new Set<string>();
+            const details: Record<string, { confirmedBy: string, confirmedAt: string }> = {};
             
             reads.forEach((r: any) => {
                 if (r.is_confirmed) cIds.add(r.personnel_id);
-                if (r.confirmed_by) vIds.add(r.personnel_id);
+                if (r.confirmed_by) {
+                    vIds.add(r.personnel_id);
+                    details[r.personnel_id] = { confirmedBy: r.confirmed_by, confirmedAt: r.confirmed_at };
+                }
             });
             
             setConfirmedIds(cIds);
             setManagerVerifiedIds(vIds);
+            setVerificationDetails(details);
             setReadCount(cIds.size);
             
             if (cIds.has(userId)) setIsConfirmed(true);
@@ -286,6 +293,8 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
     const handleManagerVerify = async (personnelId: string, verify: boolean) => {
         if (!id) return;
         
+        const now = new Date().toISOString();
+
         // Optimistic update
         setManagerVerifiedIds(prev => {
             const next = new Set(prev);
@@ -294,9 +303,19 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
             return next;
         });
 
+        setVerificationDetails(prev => {
+            const next = { ...prev };
+            if (verify) {
+                next[personnelId] = { confirmedBy: userId, confirmedAt: now };
+            } else {
+                delete next[personnelId];
+            }
+            return next;
+        });
+
         const { error } = await supabase.from('announcement_reads').update({
             confirmed_by: verify ? userId : null,
-            confirmed_at: verify ? new Date().toISOString() : null
+            confirmed_at: verify ? now : null
         }).eq('announcement_id', id).eq('personnel_id', personnelId);
 
         if (error) {
@@ -308,6 +327,20 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                 else next.delete(personnelId);
                 return next;
             });
+            setVerificationDetails(prev => {
+                 const next = { ...prev };
+                 // Note: Reverting details exactly is hard without keeping previous state, 
+                 // but typically we can just clear it or refetch. 
+                 // For simplicity in this error case, we might want to refetch or just simple revert:
+                 if (!verify) {
+                     // We tried to uncheck, so put it back (approximate, might be stale but ok for error revert)
+                     // Ideally we would fetch the old value first.
+                 } else {
+                     delete next[personnelId];
+                 }
+                 return next;
+            });
+            fetchData(); // Safety refetch
         }
     };
 
@@ -329,6 +362,13 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
         });
         return grouped;
     }, [allPersonnel]);
+
+    // Helper to get verifier name
+    const getVerifierName = (verifierId: string) => {
+        if (verifierId === userId) return userName; // Current user
+        const person = allPersonnel.find(p => p.id === verifierId);
+        return person ? person.name : '未知';
+    };
 
     if (loading) return <div className="p-10 text-center text-stone-500 font-bold">載入中...</div>;
     if (!announcement) return null;
@@ -535,6 +575,8 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                                             {people.map(p => {
                                                 const isRead = confirmedIds.has(p.id);
                                                 const isVerified = managerVerifiedIds.has(p.id);
+                                                const vDetail = verificationDetails[p.id];
+                                                
                                                 return (
                                                     <div 
                                                         key={p.id} 
@@ -552,13 +594,21 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                                                         </div>
                                                         
                                                         {isRead && (
-                                                            <input 
-                                                                type="checkbox"
-                                                                checked={isVerified}
-                                                                onChange={(e) => handleManagerVerify(p.id, e.target.checked)}
-                                                                className="shrink-0 w-4 h-4 rounded border-stone-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                                                                title="主管確認"
-                                                            />
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                {isVerified && vDetail && (
+                                                                    <div className="text-[9px] text-stone-400 text-right leading-tight hidden xs:block">
+                                                                        <div className="font-bold">{getVerifierName(vDetail.confirmedBy)}</div>
+                                                                        <div>{new Date(vDetail.confirmedAt).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                                                                    </div>
+                                                                )}
+                                                                <input 
+                                                                    type="checkbox"
+                                                                    checked={isVerified}
+                                                                    onChange={(e) => handleManagerVerify(p.id, e.target.checked)}
+                                                                    className="shrink-0 w-4 h-4 rounded border-stone-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                                                    title="主管確認"
+                                                                />
+                                                            </div>
                                                         )}
                                                     </div>
                                                 );
