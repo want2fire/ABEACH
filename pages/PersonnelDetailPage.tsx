@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Navigate, Link } from 'react-router-dom';
 import { type Personnel, type TrainingItem, type TrainingAssignment, type TagData, type DailySchedule, type UserRole } from '../types';
 import ProgressBar from '../components/ProgressBar';
 import Tag from '../components/Tag';
@@ -217,16 +217,21 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
               checked={completed}
               onChange={(e) => handleToggleComplete(itemId, e.target.checked)}
               disabled={!canManage}
-              className={`h-5 w-5 rounded bg-white border-stone-300 ${completed ? 'text-palm-500 focus:ring-palm-500' : 'text-pizza-500 focus:ring-pizza-500'} focus:ring-offset-white disabled:opacity-50`}
+              className={`h-5 w-5 shrink-0 rounded bg-white border-stone-300 ${completed ? 'text-palm-500 focus:ring-palm-500' : 'text-pizza-500 focus:ring-pizza-500'} focus:ring-offset-white disabled:opacity-50 ${canManage ? 'cursor-pointer' : ''}`}
             />
-            <label className={`ml-4 flex-grow ${canManage ? 'cursor-pointer' : ''}`}>
-              <span className={`block font-bold font-sans text-base ${completed ? 'line-through opacity-70' : 'text-stone-800'}`}>{details!.name}</span>
+            <div className="ml-4 flex-grow min-w-0">
+              <Link 
+                to={`/training-items/${itemId}`} 
+                className={`block font-bold font-sans text-base truncate hover:text-pizza-600 hover:underline decoration-2 decoration-pizza-500/30 transition-all ${completed ? 'line-through opacity-70' : 'text-stone-800'}`}
+              >
+                {details!.name}
+              </Link>
               <div className={`flex gap-2 mt-1 text-[10px] uppercase tracking-wider font-bold ${completed ? 'opacity-50' : ''}`}>
                  <span className="text-stone-500">{details!.chapter}</span>
                  <span className="text-stone-300">•</span>
                  <span className="text-stone-500">{details!.workArea}</span>
               </div>
-            </label>
+            </div>
           </li>
         ))}
       </ul>
@@ -240,9 +245,14 @@ const PersonnelDetailPage: React.FC<PersonnelDetailPageProps> = ({ personnelList
             {itemIds.map(getItemDetails).filter((i): i is TrainingItem => !!i).map(item => {
                  const isCompleted = (person.trainingPlan.find(p => p.itemId === item.id) || {}).completed || false;
                  return (
-                    <li key={item.id} className={`flex items-center p-2 rounded ${isCompleted ? 'text-stone-400 line-through opacity-50' : 'text-stone-700'}`}>
-                        <div className={`w-1.5 h-1.5 rounded-full mr-2 ${isCompleted ? 'bg-palm-500' : 'bg-pizza-500'}`}></div>
-                        <span className="text-sm font-medium">{item.name}</span>
+                    <li key={item.id}>
+                        <Link 
+                            to={`/training-items/${item.id}`} 
+                            className={`flex items-center p-2 rounded hover:bg-white/50 transition-colors ${isCompleted ? 'text-stone-400 line-through opacity-50' : 'text-stone-700 hover:text-pizza-600'}`}
+                        >
+                            <div className={`shrink-0 w-1.5 h-1.5 rounded-full mr-2 ${isCompleted ? 'bg-palm-500' : 'bg-pizza-500'}`}></div>
+                            <span className="text-sm font-medium truncate">{item.name}</span>
+                        </Link>
                     </li>
                  )
             })}
