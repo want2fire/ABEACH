@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
@@ -194,7 +195,9 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
         setEditIsActive(anno.is_active);
 
         // Fetch Tags
-        const { data: tags } = await supabase.from('tags').select('*').in('category', ['job', 'station', 'anno_category']);
+        const { data: tagsData } = await supabase.from('tags').select('*').in('category', ['job', 'station', 'anno_category']);
+        const tags = tagsData as any[] | null;
+
         if (tags) {
             setTagOptions({
                 jobs: tags.filter((t:any) => t.category === 'job'),
@@ -206,7 +209,7 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
         // Fetch ALL Personnel (to ensure we can resolve names for verifiers, even if they aren't '在職')
         const { data: people } = await supabase.from('personnel').select('id, name, station, status').order('station');
         if (people) {
-            setAllPersonnel(people.map((p:any) => ({...p, station: p.station || '未分配'})) as any);
+            setAllPersonnel((people as any[]).map((p:any) => ({...p, station: p.station || '未分配'})) as any);
         }
 
         // Fetch Read Status
@@ -393,7 +396,7 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                         <div>
                              <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-2">分類</label>
                              <select value={editCategory} onChange={e => setEditCategory(e.target.value)} className="glass-input w-full px-4 py-3 rounded-xl">
-                                {tagOptions.categories.map(c => <option key={c.id} value={c.value}>{c.value}</option>)}
+                                {(tagOptions.categories as TagData[]).map(c => <option key={c.id} value={c.value}>{c.value}</option>)}
                              </select>
                         </div>
                         <div>
@@ -432,7 +435,7 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                     <div>
                          <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-2">發送對象 (職等)</label>
                          <div className="flex flex-wrap gap-2 mb-4">
-                            {tagOptions.jobs.map(job => (
+                            {(tagOptions.jobs as TagData[]).map(job => (
                                 <button
                                     key={job.id}
                                     type="button"
@@ -452,7 +455,7 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                             >
                                 全體
                             </button>
-                            {tagOptions.stations.filter(st => st.value !== '全體').map(st => (
+                            {(tagOptions.stations as TagData[]).filter(st => st.value !== '全體').map(st => (
                                 <button
                                     key={st.id}
                                     type="button"
@@ -568,7 +571,7 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                                     <div key={station}>
                                         <h4 className="text-xs font-bold text-stone-800 mb-3 border-b border-stone-200 pb-1">{station || '未分配'}</h4>
                                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                                            {people.map(p => {
+                                            {people.map((p: Personnel) => {
                                                 const isRead = confirmedIds.has(p.id);
                                                 const isVerified = managerVerifiedIds.has(p.id);
                                                 const vDetail = verificationDetails[p.id];

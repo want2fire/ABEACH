@@ -1,26 +1,46 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { type TrainingItem, type SOPBlock, type UserRole } from '../types';
 import ReactQuill from 'react-quill';
 
-// --- Custom Font & Size Registration ---
-let Quill: any = null;
-if (ReactQuill && (ReactQuill as any).Quill) {
-    Quill = (ReactQuill as any).Quill;
-} else if ((window as any).Quill) {
-    Quill = (window as any).Quill;
-}
+// --- Robust Quill Registration ---
+// Define fonts and sizes outside to ensure they are available for registration
+const FONT_WHITELIST = ['inter', 'roboto', 'playfair', 'syne', 'dela', 'noto'];
+const SIZE_WHITELIST = ['12px', '14px', '16px', '18px', '20px', '24px', '30px', '36px', '48px'];
 
-if (Quill) {
-    const Font = Quill.import('formats/font') as any;
-    Font.whitelist = ['inter', 'roboto', 'playfair', 'syne', 'dela', 'noto'];
-    Quill.register(Font, true);
+const registerQuill = () => {
+    let QuillInstance: any = null;
+    // Try to get Quill from the ReactQuill export or window
+    if (ReactQuill && (ReactQuill as any).Quill) {
+        QuillInstance = (ReactQuill as any).Quill;
+    } else if ((window as any).Quill) {
+        QuillInstance = (window as any).Quill;
+    }
 
-    const Size = Quill.import('attributors/style/size');
-    Size.whitelist = ['12px', '14px', '16px', '18px', '20px', '24px', '30px', '36px', '48px'];
-    Quill.register(Size, true);
-}
+    if (QuillInstance) {
+        // Register Fonts
+        const Font = QuillInstance.import('formats/font');
+        Font.whitelist = FONT_WHITELIST;
+        QuillInstance.register(Font, true);
+
+        // Register Sizes (Use inline styles for pixels)
+        try {
+            const Size = QuillInstance.import('attributors/style/size');
+            Size.whitelist = SIZE_WHITELIST;
+            QuillInstance.register(Size, true);
+        } catch (e) {
+            console.warn('Quill size registration fallback', e);
+            const Size = QuillInstance.import('formats/size');
+            Size.whitelist = SIZE_WHITELIST;
+            QuillInstance.register(Size, true);
+        }
+    }
+};
+
+// Execute registration immediately
+registerQuill();
 
 // Improved Auto-link Strategy
 const autoLinkHtml = (html: string): string => {
@@ -199,8 +219,8 @@ const SheetEditor: React.FC<SheetEditorProps> = ({ data, onChange, readOnly, onI
     const removeRow = (index: number) => { if(grid.length > 1) { onChange(grid.filter((_, i) => i !== index)); setActiveCell(null); } };
     const removeCol = (index: number) => { if(grid[0].length > 1) { onChange(grid.map(row => row.filter((_, i) => i !== index))); setActiveCell(null); } };
 
-    // Fonts & Sizes
-    const fonts = [
+    // Fonts & Sizes for Sheet
+    const sheetFonts = [
         { label: '預設', value: '' },
         { label: 'Inter', value: "'Inter', sans-serif" },
         { label: 'Roboto', value: "'Roboto', sans-serif" },
@@ -209,7 +229,7 @@ const SheetEditor: React.FC<SheetEditorProps> = ({ data, onChange, readOnly, onI
         { label: 'Dela Gothic', value: "'Dela Gothic One', cursive" },
         { label: 'Noto Sans TC', value: "'Noto Sans TC', sans-serif" }
     ];
-    const sizes = ['12px','14px','16px','18px','20px','24px','30px','36px','48px'];
+    const sheetSizes = ['12px','14px','16px','18px','20px','24px','30px','36px','48px'];
 
     // --- Read Only View ---
     if (readOnly) {
@@ -254,11 +274,11 @@ const SheetEditor: React.FC<SheetEditorProps> = ({ data, onChange, readOnly, onI
                      {/* Font Family */}
                      <div className="relative group">
                          <select 
-                            className="appearance-none pl-2 pr-6 py-1.5 rounded hover:bg-stone-100 text-xs font-bold text-stone-600 border border-transparent hover:border-stone-200 outline-none w-24 truncate"
+                            className="appearance-none pl-2 pr-6 py-1.5 rounded hover:bg-stone-100 text-xs font-bold text-stone-600 border border-transparent hover:border-stone-200 outline-none w-24 truncate cursor-pointer"
                             value={getActiveStyle('fontFamily') || ''}
                             onChange={(e) => handleStyleChange('fontFamily', e.target.value)}
                          >
-                             {fonts.map(f => <option key={f.label} value={f.value}>{f.label}</option>)}
+                             {sheetFonts.map(f => <option key={f.label} value={f.value}>{f.label}</option>)}
                          </select>
                          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-stone-400">▼</div>
                      </div>
@@ -266,11 +286,11 @@ const SheetEditor: React.FC<SheetEditorProps> = ({ data, onChange, readOnly, onI
                      {/* Font Size */}
                      <div className="relative group">
                          <select 
-                            className="appearance-none pl-2 pr-6 py-1.5 rounded hover:bg-stone-100 text-xs font-bold text-stone-600 border border-transparent hover:border-stone-200 outline-none w-16"
+                            className="appearance-none pl-2 pr-6 py-1.5 rounded hover:bg-stone-100 text-xs font-bold text-stone-600 border border-transparent hover:border-stone-200 outline-none w-16 cursor-pointer"
                             value={getActiveStyle('fontSize') || '14px'}
                             onChange={(e) => handleStyleChange('fontSize', e.target.value)}
                          >
-                             {sizes.map(s => <option key={s} value={s}>{s}</option>)}
+                             {sheetSizes.map(s => <option key={s} value={s}>{s}</option>)}
                          </select>
                          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-stone-400">▼</div>
                      </div>
@@ -281,7 +301,7 @@ const SheetEditor: React.FC<SheetEditorProps> = ({ data, onChange, readOnly, onI
                     <div className="relative">
                         <button 
                             onMouseDown={(e) => { e.preventDefault(); setShowColorPicker(showColorPicker === 'text' ? null : 'text'); }}
-                            className="p-1.5 rounded hover:bg-stone-100 text-stone-600 font-bold text-xs flex items-center gap-1"
+                            className="p-1.5 rounded hover:bg-stone-100 text-stone-600 font-bold text-xs flex items-center gap-1 relative"
                             title="文字顏色"
                         >
                             <span className="w-4 h-4 rounded-full border border-stone-200 flex items-center justify-center text-[10px]" style={{ background: getActiveStyle('color') || '#000', color: getActiveStyle('color') === '#000000' || !getActiveStyle('color') ? 'white' : 'black' }}>A</span>
@@ -562,6 +582,9 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
   }), []);
 
   useEffect(() => {
+    // Ensure Quill formats are registered when the component mounts
+    registerQuill();
+    
     const fetchItem = async () => {
       if (!itemId) return;
       setLoading(true);
@@ -650,7 +673,7 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
         </div>
 
         {isEditMode ? (
-            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-stone-200 animate-fade-in relative p-1">
+            <div className="bg-white rounded-3xl shadow-xl border border-stone-200 animate-fade-in relative p-1">
                 <CustomToolbar 
                     onImage={() => setMediaModal({ isOpen: true, target: 'quill' })} 
                 />
