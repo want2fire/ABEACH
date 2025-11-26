@@ -5,41 +5,23 @@ import { supabase } from '../lib/supabaseClient';
 import { type TrainingItem, type SOPBlock, type UserRole } from '../types';
 import ReactQuill from 'react-quill';
 
-// --- Robust Quill Registration ---
-const FONT_WHITELIST = ['inter', 'roboto', 'playfair', 'syne', 'dela', 'noto'];
-const SIZE_WHITELIST = ['12px', '14px', '16px', '18px', '20px', '24px', '30px', '36px', '48px'];
+// --- Custom Font & Size Registration ---
+let Quill: any = null;
+if (ReactQuill && (ReactQuill as any).Quill) {
+    Quill = (ReactQuill as any).Quill;
+} else if ((window as any).Quill) {
+    Quill = (window as any).Quill;
+}
 
-const registerQuill = () => {
-    let QuillInstance: any = null;
+if (Quill) {
+    const Font = Quill.import('formats/font') as any;
+    Font.whitelist = ['inter', 'roboto', 'playfair', 'syne', 'dela', 'noto'];
+    Quill.register(Font, true);
 
-    // 1. Try ReactQuill static property (CommonJS/ESM interop)
-    if (ReactQuill && (ReactQuill as any).Quill) {
-        QuillInstance = (ReactQuill as any).Quill;
-    }
-
-    // 2. Try Window global (CDN/UMD)
-    if (!QuillInstance && (window as any).Quill) {
-        QuillInstance = (window as any).Quill;
-    }
-
-    if (QuillInstance) {
-        // Register Fonts
-        const Font = QuillInstance.import('formats/font');
-        Font.whitelist = FONT_WHITELIST;
-        QuillInstance.register(Font, true);
-
-        // Register Sizes
-        const Size = QuillInstance.import('attributors/style/size');
-        Size.whitelist = SIZE_WHITELIST;
-        QuillInstance.register(Size, true);
-        
-        return true;
-    }
-    return false;
-};
-
-// Try registering immediately
-registerQuill();
+    const Size = Quill.import('attributors/style/size');
+    Size.whitelist = ['12px', '14px', '16px', '18px', '20px', '24px', '30px', '36px', '48px'];
+    Quill.register(Size, true);
+}
 
 // Improved Auto-link Strategy
 const autoLinkHtml = (html: string): string => {
@@ -55,6 +37,7 @@ const autoLinkHtml = (html: string): string => {
         if(node.parentElement && ['A', 'SCRIPT', 'STYLE', 'BUTTON', 'TEXTAREA', 'CODE', 'PRE'].includes(node.parentElement.tagName)) return;
         
         const text = node.textContent || '';
+        // Regex to catch http/https or www. links, being careful with trailing punctuation
         const urlRegex = /((https?:\/\/|www\.)[^\s]+)/g;
         
         if(!urlRegex.test(text)) return;
@@ -70,6 +53,7 @@ const autoLinkHtml = (html: string): string => {
             let url = match[0];
             const href = url.startsWith('www.') ? `https://${url}` : url;
             
+            // Strip common trailing punctuation if it's not part of the URL structure
             const punctuation = /[.,;:!?)]+$/;
             let suffix = '';
             const pMatch = url.match(punctuation);
@@ -102,9 +86,12 @@ const autoLinkHtml = (html: string): string => {
 
 const convertBlocksToHtml = (blocks: SOPBlock[]): string => {
     if (!blocks || blocks.length === 0) return '';
+    
+    // Find the Richtext block
     const richTextBlock = blocks.find(b => b.type === 'richtext');
     if (richTextBlock) return autoLinkHtml(richTextBlock.content);
 
+    // Fallback for legacy data (convert array of blocks to single HTML)
     let rawHtml = blocks.filter(b => b.type !== 'table').map(block => {
         let text = block.content || '';
         text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #f97316; text-decoration: underline;">$1</a>');
@@ -127,129 +114,45 @@ const convertBlocksToHtml = (blocks: SOPBlock[]): string => {
     return autoLinkHtml(rawHtml);
 };
 
-// --- Sheet Editor Types & Components ---
-
-interface SheetCell {
-    value: string;
-    style?: React.CSSProperties;
-}
-
-const normalizeSheetData = (data: any): SheetCell[][] => {
-    if (!Array.isArray(data)) return [];
-    if (data.length === 0) return [];
-    const isLegacy = typeof data[0][0] === 'string';
-    if (isLegacy) {
-        return data.map((row: any[]) => row.map(cell => ({ value: String(cell || ''), style: {} })));
-    }
-    return data;
-};
-
-const isImageUrl = (url: string) => {
-    if (!url || typeof url !== 'string') return false;
-    return url.match(/\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i) || url.startsWith('data:image/');
-};
-
-interface SheetEditorProps {
-    data: SheetCell[][];
-    onChange: (data: SheetCell[][]) => void;
-    readOnly?: boolean;
-    onImageRequest?: () => void;
-    insertImageRef?: React.MutableRefObject<((url: string) => void) | undefined>;
-}
-
-const SheetEditor: React.FC<SheetEditorProps> = ({ data, onChange, readOnly, onImageRequest, insertImageRef }) => {
-    const grid = data.length > 0 ? data : [[{ value: '', style: {} }, { value: '', style: {} }, { value: '', style: {} }], [{ value: '', style: {} }, { value: '', style: {} }, { value: '', style: {} }]];
-    
-    // Tracking active cell for styling [row, col]
-    const [activeCell, setActiveCell] = useState<{r: number, c: number} | null>(null);
-    const [showColorPicker, setShowColorPicker] = useState<'text' | 'bg' | null>(null);
-
-    // Provide the insert function to the parent via ref
-    useEffect(() => {
-        if (insertImageRef) {
-            insertImageRef.current = (url: string) => {
-                if (activeCell) {
-                    handleCellChange(activeCell.r, activeCell.c, url);
-                } else {
-                    alert('請先點擊選擇一個表格儲存格');
-                }
-            };
-        }
-    }, [activeCell, grid, insertImageRef]);
+// Sheet Editor Component
+const SheetEditor: React.FC<{ data: string[][], onChange: (data: string[][]) => void, readOnly?: boolean }> = ({ data, onChange, readOnly }) => {
+    const grid = data.length > 0 ? data : [['', '', ''], ['', '', ''], ['', '', '']];
 
     const handleCellChange = (r: number, c: number, value: string) => {
-        const newGrid = grid.map((row, ri) => ri === r ? row.map((col, ci) => ci === c ? { ...col, value } : col) : row);
+        const newGrid = grid.map((row, ri) => ri === r ? row.map((col, ci) => ci === c ? value : col) : row);
         onChange(newGrid);
     };
 
-    const handleStyleChange = (styleKey: keyof React.CSSProperties, value: any) => {
-        if (!activeCell) return;
-        const { r, c } = activeCell;
-        const currentCell = grid[r][c];
-        const newStyle = { ...currentCell.style, [styleKey]: value };
-        if (!value) delete (newStyle as any)[styleKey];
-        const newGrid = grid.map((row, ri) => ri === r ? row.map((col, ci) => ci === c ? { ...col, style: newStyle } : col) : row);
-        onChange(newGrid);
-        setShowColorPicker(null);
+    const addRow = () => {
+        const cols = grid[0]?.length || 3;
+        onChange([...grid, Array(cols).fill('')]);
     };
 
-    const getActiveStyle = (key: keyof React.CSSProperties) => activeCell ? grid[activeCell.r][activeCell.c].style?.[key] : undefined;
-
-    const toggleBold = () => handleStyleChange('fontWeight', getActiveStyle('fontWeight') === 'bold' ? 'normal' : 'bold');
-    const toggleItalic = () => handleStyleChange('fontStyle', getActiveStyle('fontStyle') === 'italic' ? 'normal' : 'italic');
-    const toggleUnderline = () => {
-        const current = getActiveStyle('textDecoration') as string;
-        handleStyleChange('textDecoration', current?.includes('underline') ? 'none' : 'underline');
-    };
-    const toggleStrikethrough = () => {
-        const current = getActiveStyle('textDecoration') as string;
-        handleStyleChange('textDecoration', current?.includes('line-through') ? 'none' : 'line-through');
+    const addCol = () => {
+        onChange(grid.map(row => [...row, '']));
     };
     
-    const clearFormatting = () => {
-        if (!activeCell) return;
-        const { r, c } = activeCell;
-        const newGrid = grid.map((row, ri) => ri === r ? row.map((col, ci) => ci === c ? { ...col, style: {} } : col) : row);
-        onChange(newGrid);
+    const removeRow = (index: number) => {
+        if(grid.length <= 1) return;
+        onChange(grid.filter((_, i) => i !== index));
+    };
+    
+    const removeCol = (index: number) => {
+        if(grid[0].length <= 1) return;
+        onChange(grid.map(row => row.filter((_, i) => i !== index)));
     };
 
-    const addRow = () => onChange([...grid, Array(grid[0]?.length || 3).fill({ value: '', style: {} })]);
-    const addCol = () => onChange(grid.map(row => [...row, { value: '', style: {} }]));
-    const removeRow = (index: number) => { if(grid.length > 1) { onChange(grid.filter((_, i) => i !== index)); setActiveCell(null); } };
-    const removeCol = (index: number) => { if(grid[0].length > 1) { onChange(grid.map(row => row.filter((_, i) => i !== index))); setActiveCell(null); } };
-
-    // Fonts & Sizes for Sheet
-    const sheetFonts = [
-        { label: '預設', value: '' },
-        { label: 'Inter', value: "'Inter', sans-serif" },
-        { label: 'Roboto', value: "'Roboto', sans-serif" },
-        { label: 'Playfair', value: "'Playfair Display', serif" },
-        { label: 'Syne', value: "'Syne', sans-serif" },
-        { label: 'Dela Gothic', value: "'Dela Gothic One', cursive" },
-        { label: 'Noto Sans TC', value: "'Noto Sans TC', sans-serif" }
-    ];
-    const sheetSizes = ['12px','14px','16px','18px','20px','24px','30px','36px','48px'];
-
-    // --- Read Only View ---
     if (readOnly) {
-        if (grid.every(r => r.every(c => !c.value.trim()))) return null;
+        if (grid.every(r => r.every(c => !c.trim()))) return null;
         return (
-            <div className="mt-8 overflow-x-auto rounded-xl border border-stone-200 shadow-sm">
-                <table className="w-full text-sm text-left text-stone-600 border-collapse">
+            <div className="mt-8 overflow-x-auto rounded-xl border border-stone-200">
+                <table className="w-full text-sm text-left text-stone-600">
                     <tbody>
                         {grid.map((row, ri) => (
                             <tr key={ri} className="border-b border-stone-100 last:border-0 hover:bg-stone-50">
                                 {row.map((cell, ci) => (
-                                    <td 
-                                        key={ci} 
-                                        className={`px-6 py-4 border-r border-stone-100 last:border-0 ${ri === 0 && !cell.style?.fontWeight ? 'font-bold bg-stone-50 text-stone-800' : ''}`}
-                                        style={cell.style}
-                                    >
-                                        {isImageUrl(cell.value) ? (
-                                            <img src={cell.value} alt="Cell content" className="max-w-[150px] rounded-md shadow-sm border border-stone-100" />
-                                        ) : (
-                                            cell.value
-                                        )}
+                                    <td key={ci} className={`px-6 py-4 border-r border-stone-100 last:border-0 ${ri === 0 ? 'font-bold bg-stone-50 text-stone-800' : ''}`}>
+                                        {cell}
                                     </td>
                                 ))}
                             </tr>
@@ -260,153 +163,33 @@ const SheetEditor: React.FC<SheetEditorProps> = ({ data, onChange, readOnly, onI
         );
     }
 
-    // --- Editor Toolbar ---
-    const colors = [{ label: '預設', value: '' }, { label: 'Orange', value: '#f97316' }, { label: 'Red', value: '#ef4444' }, { label: 'Green', value: '#10b981' }, { label: 'Blue', value: '#3b82f6' }, { label: 'Gray', value: '#57534e' }, { label: 'Black', value: '#000000' }];
-    const bgColors = [{ label: '無', value: '' }, { label: 'White', value: '#ffffff' }, { label: 'Stone', value: '#fafaf9' }, { label: 'Orange', value: '#ffedd5' }, { label: 'Red', value: '#fee2e2' }, { label: 'Green', value: '#d1fae5' }, { label: 'Blue', value: '#dbeafe' }, { label: 'Yellow', value: '#fef3c7' }];
-
     return (
         <div className="mt-8 p-6 bg-stone-50 rounded-2xl border border-stone-200">
-            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-4 gap-4">
-                <h3 className="text-sm font-bold text-stone-500 uppercase tracking-widest shrink-0">附表編輯</h3>
-                
-                <div className="flex flex-wrap items-center gap-1.5 bg-white p-2 rounded-lg border border-stone-200 shadow-sm">
-                     {/* Font Family */}
-                     <div className="relative group">
-                         <select 
-                            className="appearance-none pl-2 pr-6 py-1.5 rounded hover:bg-stone-100 text-xs font-bold text-stone-600 border border-transparent hover:border-stone-200 outline-none w-24 truncate cursor-pointer"
-                            value={getActiveStyle('fontFamily') || ''}
-                            onChange={(e) => handleStyleChange('fontFamily', e.target.value)}
-                         >
-                             {sheetFonts.map(f => <option key={f.label} value={f.value}>{f.label}</option>)}
-                         </select>
-                         <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-stone-400">▼</div>
-                     </div>
-
-                     {/* Font Size */}
-                     <div className="relative group">
-                         <select 
-                            className="appearance-none pl-2 pr-6 py-1.5 rounded hover:bg-stone-100 text-xs font-bold text-stone-600 border border-transparent hover:border-stone-200 outline-none w-16 cursor-pointer"
-                            value={getActiveStyle('fontSize') || '14px'}
-                            onChange={(e) => handleStyleChange('fontSize', e.target.value)}
-                         >
-                             {sheetSizes.map(s => <option key={s} value={s}>{s}</option>)}
-                         </select>
-                         <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-stone-400">▼</div>
-                     </div>
-
-                     <div className="w-px h-4 bg-stone-300 mx-1"></div>
-
-                     {/* Text Color */}
-                    <div className="relative">
-                        <button 
-                            onMouseDown={(e) => { e.preventDefault(); setShowColorPicker(showColorPicker === 'text' ? null : 'text'); }}
-                            className="p-1.5 rounded hover:bg-stone-100 text-stone-600 font-bold text-xs flex items-center gap-1 relative"
-                            title="文字顏色"
-                        >
-                            <span className="w-4 h-4 rounded-full border border-stone-200 flex items-center justify-center text-[10px]" style={{ background: getActiveStyle('color') || '#000', color: getActiveStyle('color') === '#000000' || !getActiveStyle('color') ? 'white' : 'black' }}>A</span>
-                        </button>
-                        {showColorPicker === 'text' && (
-                            <div className="absolute top-full left-0 mt-1 bg-white border border-stone-200 rounded-lg shadow-xl z-20 p-2 grid grid-cols-4 gap-1 w-32">
-                                {colors.map(c => (
-                                    <button 
-                                        key={c.label} 
-                                        onMouseDown={(e) => { e.preventDefault(); handleStyleChange('color', c.value); }}
-                                        className="w-6 h-6 rounded-full border border-stone-100 hover:scale-110 transition-transform"
-                                        style={{ background: c.value || `linear-gradient(to bottom right, #fff, #ccc)` }}
-                                        title={c.label}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Bg Color */}
-                    <div className="relative">
-                        <button 
-                             onMouseDown={(e) => { e.preventDefault(); setShowColorPicker(showColorPicker === 'bg' ? null : 'bg'); }}
-                            className="p-1.5 rounded hover:bg-stone-100 text-stone-600 font-bold text-xs flex items-center gap-1"
-                            title="背景顏色"
-                        >
-                            <div className="w-4 h-4 rounded border border-stone-200 relative" style={{ background: getActiveStyle('backgroundColor') || '#fff' }}>
-                                <svg className="w-2.5 h-2.5 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-stone-400 mix-blend-difference" fill="currentColor" viewBox="0 0 24 24"><path d="M19.35 10.04C21.95 7.44 21.95 3.22 19.35 0.62C16.75 -1.98 12.53 -1.98 9.93 0.62L0 10.55V20H9.45L19.35 10.04ZM2.07 11.21L9.93 3.35C11.53 1.75 14.13 1.75 15.73 3.35L2.07 17.01V11.21ZM2.07 19.84V19.84H2.07V19.84Z" /></svg>
-                            </div>
-                        </button>
-                        {showColorPicker === 'bg' && (
-                            <div className="absolute top-full left-0 mt-1 bg-white border border-stone-200 rounded-lg shadow-xl z-20 p-2 grid grid-cols-4 gap-1 w-32">
-                                {bgColors.map(c => (
-                                    <button 
-                                        key={c.label} 
-                                        onMouseDown={(e) => { e.preventDefault(); handleStyleChange('backgroundColor', c.value); }}
-                                        className="w-6 h-6 rounded border border-stone-100 hover:scale-110 transition-transform"
-                                        style={{ background: c.value || `linear-gradient(to bottom right, #fff, #ccc)` }}
-                                        title={c.label}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="w-px h-4 bg-stone-300 mx-1"></div>
-
-                    {/* Formatting */}
-                    <button onMouseDown={(e) => { e.preventDefault(); toggleBold(); }} className={`p-1.5 rounded hover:bg-stone-100 font-serif font-bold text-stone-700 ${getActiveStyle('fontWeight') === 'bold' ? 'bg-stone-200' : ''}`} title="粗體">B</button>
-                    <button onMouseDown={(e) => { e.preventDefault(); toggleItalic(); }} className={`p-1.5 rounded hover:bg-stone-100 font-serif italic text-stone-700 ${getActiveStyle('fontStyle') === 'italic' ? 'bg-stone-200' : ''}`} title="斜體">I</button>
-                    <button onMouseDown={(e) => { e.preventDefault(); toggleUnderline(); }} className={`p-1.5 rounded hover:bg-stone-100 font-serif underline text-stone-700 ${(getActiveStyle('textDecoration') as string)?.includes('underline') ? 'bg-stone-200' : ''}`} title="底線">U</button>
-                    <button onMouseDown={(e) => { e.preventDefault(); toggleStrikethrough(); }} className={`p-1.5 rounded hover:bg-stone-100 font-serif line-through text-stone-700 ${(getActiveStyle('textDecoration') as string)?.includes('line-through') ? 'bg-stone-200' : ''}`} title="刪除線">S</button>
-
-                    <div className="w-px h-4 bg-stone-300 mx-1"></div>
-
-                    {/* Alignment */}
-                    <button onMouseDown={(e) => { e.preventDefault(); handleStyleChange('textAlign', 'left'); }} className={`p-1.5 rounded hover:bg-stone-100 ${getActiveStyle('textAlign') === 'left' ? 'bg-stone-200' : ''}`} title="靠左"><svg className="w-3 h-3 text-stone-600" fill="currentColor" viewBox="0 0 24 24"><path d="M3 18h12v-2H3v2zM3 6v2h18V6H3zm0 7h18v-2H3v2z"/></svg></button>
-                    <button onMouseDown={(e) => { e.preventDefault(); handleStyleChange('textAlign', 'center'); }} className={`p-1.5 rounded hover:bg-stone-100 ${getActiveStyle('textAlign') === 'center' ? 'bg-stone-200' : ''}`} title="置中"><svg className="w-3 h-3 text-stone-600" fill="currentColor" viewBox="0 0 24 24"><path d="M7 15v2h10v-2H7zm-4 6h18v-2H3v2zm0-8h18v-2H3v2zm4-6v2h10V7H7zM3 3v2h18V3H3z"/></svg></button>
-                    <button onMouseDown={(e) => { e.preventDefault(); handleStyleChange('textAlign', 'right'); }} className={`p-1.5 rounded hover:bg-stone-100 ${getActiveStyle('textAlign') === 'right' ? 'bg-stone-200' : ''}`} title="靠右"><svg className="w-3 h-3 text-stone-600" fill="currentColor" viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></button>
-
-                    <div className="w-px h-4 bg-stone-300 mx-1"></div>
-
-                    {/* Image */}
-                    <button 
-                        onMouseDown={(e) => { e.preventDefault(); onImageRequest && onImageRequest(); }}
-                        className="p-1.5 rounded hover:bg-stone-100 hover:text-pizza-500 text-stone-600"
-                        title="插入圖片 (連結)"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    </button>
-                    
-                    {/* Clear */}
-                    <button onMouseDown={(e) => { e.preventDefault(); clearFormatting(); }} className="p-1.5 rounded hover:bg-stone-100" title="清除格式">
-                         <svg className="w-3 h-3 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    </button>
-
-                    <div className="w-px h-4 bg-stone-300 mx-1"></div>
-
-                    {/* Structure */}
-                    <div className="flex gap-1">
-                        <button onClick={addRow} className="px-2 py-1 bg-stone-100 border border-stone-200 rounded text-[10px] font-bold hover:bg-white text-stone-600">+列</button>
-                        <button onClick={addCol} className="px-2 py-1 bg-stone-100 border border-stone-200 rounded text-[10px] font-bold hover:bg-white text-stone-600">+行</button>
-                    </div>
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm font-bold text-stone-500 uppercase tracking-widest">附表編輯 (Sheet)</h3>
+                <div className="flex gap-2">
+                    <button onClick={addRow} className="px-3 py-1 bg-white border border-stone-300 rounded text-xs font-bold hover:bg-stone-100">+ 列 (Row)</button>
+                    <button onClick={addCol} className="px-3 py-1 bg-white border border-stone-300 rounded text-xs font-bold hover:bg-stone-100">+ 行 (Col)</button>
                 </div>
             </div>
-            
-            <div className="overflow-x-auto p-4 bg-white rounded-xl shadow-inner border border-stone-100">
+            <div className="overflow-x-auto p-4">
                 <table className="w-full border-collapse">
                     <tbody>
                         {grid.map((row, ri) => (
                             <tr key={ri}>
                                 {row.map((cell, ci) => (
-                                    <td key={`${ri}-${ci}`} className="border border-stone-200 p-0 min-w-[100px] relative group">
+                                    <td key={`${ri}-${ci}`} className="border border-stone-300 p-0 min-w-[100px] relative group">
                                         <input 
                                             type="text" 
-                                            value={cell.value} 
+                                            value={cell} 
                                             onChange={(e) => handleCellChange(ri, ci, e.target.value)}
-                                            onFocus={() => setActiveCell({ r: ri, c: ci })}
-                                            style={cell.style}
-                                            className={`w-full h-full px-3 py-2 outline-none transition-colors ${ri===0 && !cell.style?.backgroundColor ? 'font-bold bg-stone-50' : 'bg-transparent'} ${activeCell?.r === ri && activeCell?.c === ci ? 'ring-2 ring-pizza-500 ring-inset z-10' : ''}`}
+                                            className={`w-full h-full px-3 py-2 outline-none focus:bg-pizza-50 transition-colors ${ri===0 ? 'font-bold bg-stone-100' : 'bg-white'}`}
                                         />
                                         {ci === row.length - 1 && grid.length > 1 && (
-                                            <button onClick={() => removeRow(ri)} className="absolute -right-3 top-1/2 -translate-y-1/2 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] opacity-0 group-hover:opacity-100 z-10 hover:scale-110 flex items-center justify-center shadow-md border-2 border-white" title="刪除列">×</button>
+                                            <button onClick={() => removeRow(ri)} className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 z-10 hover:scale-110 flex items-center justify-center shadow-md" title="刪除列">×</button>
                                         )}
                                         {ri === grid.length - 1 && row.length > 1 && (
-                                            <button onClick={() => removeCol(ci)} className="absolute bottom-[-10px] left-1/2 -translate-x-1/2 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] opacity-0 group-hover:opacity-100 z-10 hover:scale-110 flex items-center justify-center shadow-md border-2 border-white" title="刪除行">×</button>
+                                            <button onClick={() => removeCol(ci)} className="absolute bottom-[-12px] left-1/2 -translate-x-1/2 w-6 h-6 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 z-10 hover:scale-110 flex items-center justify-center shadow-md" title="刪除行">×</button>
                                         )}
                                     </td>
                                 ))}
@@ -419,7 +202,6 @@ const SheetEditor: React.FC<SheetEditorProps> = ({ data, onChange, readOnly, onI
     );
 };
 
-// ... MediaModal and CustomToolbar components remain the same ...
 const MediaModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
@@ -445,6 +227,8 @@ const MediaModal: React.FC<{
     const handleUpload = async () => {
         setErrorMsg(null);
         if (!file) return;
+        
+        // Size check: 50MB limit
         if (file.size > 50 * 1024 * 1024) {
              setErrorMsg('檔案過大 (超過 50MB)。\n建議壓縮檔案後再試。');
              return;
@@ -456,11 +240,16 @@ const MediaModal: React.FC<{
             const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
             const { error } = await supabase.storage.from('media').upload(fileName, file);
             if (error) throw error;
+            
             const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(fileName);
             onInsert(publicUrl);
             onClose();
         } catch (error: any) {
-             setErrorMsg(error.message?.includes('maximum allowed size') ? '上傳失敗：檔案超過伺服器限制 (50MB)。' : '上傳失敗：' + error.message);
+            if (error.message && error.message.includes('maximum allowed size')) {
+                 setErrorMsg('上傳失敗：檔案超過伺服器限制 (50MB)。');
+            } else {
+                 setErrorMsg('上傳失敗：' + error.message);
+            }
         } finally {
             setUploading(false);
         }
@@ -476,12 +265,14 @@ const MediaModal: React.FC<{
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex justify-center items-center p-4" onClick={onClose}>
             <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl border border-white/50" onClick={e => e.stopPropagation()}>
                 <h3 className="text-lg font-bold text-stone-800 mb-4">插入圖片</h3>
+                
                 {errorMsg && (
                     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-pulse">
                         <div className="text-red-500 text-lg">⚠️</div>
                         <p className="text-xs text-red-600 font-bold whitespace-pre-line leading-relaxed pt-0.5">{errorMsg}</p>
                     </div>
                 )}
+
                 <div className="flex gap-4 mb-6 border-b border-stone-100">
                     <button onClick={() => { setActiveTab('upload'); setErrorMsg(null); }} className={`pb-2 text-sm font-bold ${activeTab === 'upload' ? 'text-pizza-500 border-b-2 border-pizza-500' : 'text-stone-400'}`}>上傳檔案</button>
                     <button onClick={() => { setActiveTab('url'); setErrorMsg(null); }} className={`pb-2 text-sm font-bold ${activeTab === 'url' ? 'text-pizza-500 border-b-2 border-pizza-500' : 'text-stone-400'}`}>網址連結</button>
@@ -508,8 +299,8 @@ const MediaModal: React.FC<{
     );
 };
 
-const CustomToolbar = React.memo(({ onImage, id }: { onImage: () => void, id: string }) => (
-    <div id={id} className="flex flex-wrap items-center gap-1 sticky top-0 z-20 bg-[#f5f5f4] border-b border-[#e7e5e4] px-2 py-2 rounded-t-2xl">
+const CustomToolbar = ({ onImage }: { onImage: () => void }) => (
+    <div id="toolbar" className="flex flex-wrap items-center gap-1 sticky top-0 z-20 bg-[#f5f5f4] border-b border-[#e7e5e4] px-2 py-2 rounded-t-2xl">
       <select className="ql-header" defaultValue="" onChange={e => e.persist()} title="標題">
         <option value="1" />
         <option value="2" />
@@ -555,41 +346,28 @@ const CustomToolbar = React.memo(({ onImage, id }: { onImage: () => void, id: st
       </button>
       <button className="ql-clean" title="清除格式" />
     </div>
-));
+);
 
 const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) => {
   const { itemId } = useParams<{ itemId: string }>();
   const navigate = useNavigate();
   const [item, setItem] = useState<TrainingItem | null>(null);
   const [editorHtml, setEditorHtml] = useState('');
-  const [sheetData, setSheetData] = useState<SheetCell[][]>([]);
+  const [sheetData, setSheetData] = useState<string[][]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [mediaModal, setMediaModal] = useState<{ isOpen: boolean; target: 'quill' | 'sheet' }>({ isOpen: false, target: 'quill' });
-  
-  // Generate unique ID for this editor instance's toolbar to avoid ID conflicts
-  const toolbarId = useMemo(() => `toolbar-${Math.random().toString(36).substr(2, 9)}`, []);
-  
+  const [mediaModal, setMediaModal] = useState<{ isOpen: boolean }>({ isOpen: false });
   const quillRef = useRef<ReactQuill>(null);
-  const insertSheetImageRef = useRef<((url: string) => void) | undefined>(undefined);
 
   const modules = useMemo(() => ({
     toolbar: {
-      container: `#${toolbarId}`,
+      container: "#toolbar",
     },
     clipboard: {
         matchVisual: false
     }
-  }), [toolbarId]);
-
-  useEffect(() => {
-    // Ensure Quill formats are registered when entering edit mode
-    if (isEditMode) {
-        const registered = registerQuill();
-        if (!registered) console.warn('Quill registration failed, custom formats may not work');
-    }
-  }, [isEditMode]);
+  }), []);
 
   useEffect(() => {
     const fetchItem = async () => {
@@ -599,14 +377,16 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
       if (data) {
         setItem({ ...data, workArea: data.work_area, typeTag: data.type_tag, content: data.content || [] });
         
+        // Extract content blocks
         const blocks = data.content || [];
         setEditorHtml(convertBlocksToHtml(blocks));
         
+        // Extract Sheet Data if available
         const tableBlock = blocks.find((b: SOPBlock) => b.type === 'table');
         if (tableBlock) {
             try {
                 const parsed = JSON.parse(tableBlock.content);
-                setSheetData(normalizeSheetData(parsed));
+                setSheetData(Array.isArray(parsed) ? parsed : []);
             } catch (e) {
                 setSheetData([]);
             }
@@ -623,12 +403,24 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
     if (!itemId) return;
     setSaving(true);
     
+    // Auto-link before saving
     const linkedHtml = autoLinkHtml(editorHtml);
     
-    const blocks: SOPBlock[] = [{ id: crypto.randomUUID(), type: 'richtext', content: linkedHtml }];
+    const blocks: SOPBlock[] = [
+        {
+            id: crypto.randomUUID(),
+            type: 'richtext',
+            content: linkedHtml
+        }
+    ];
 
-    if (sheetData.length > 0 && sheetData.some(row => row.some(cell => cell.value.trim() !== ''))) {
-        blocks.push({ id: crypto.randomUUID(), type: 'table', content: JSON.stringify(sheetData) });
+    // Append table block if there is data
+    if (sheetData.length > 0 && sheetData.some(row => row.some(cell => cell.trim() !== ''))) {
+        blocks.push({
+            id: crypto.randomUUID(),
+            type: 'table',
+            content: JSON.stringify(sheetData)
+        });
     }
 
     await supabase.from('training_items').update({ content: blocks }).eq('id', itemId);
@@ -639,25 +431,13 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
     setIsEditMode(false);
   };
 
-  const handleMediaInsert = React.useCallback((url: string) => {
-      if (mediaModal.target === 'quill') {
-          const quill = quillRef.current?.getEditor();
-          if (quill) {
-              const range = quill.getSelection(true);
-              if (range) {
-                  quill.insertEmbed(range.index, 'image', url);
-              } else {
-                  // If no selection, insert at end
-                  const len = quill.getLength();
-                  quill.insertEmbed(len, 'image', url);
-              }
-          }
-      } else if (mediaModal.target === 'sheet') {
-          if (insertSheetImageRef.current) {
-              insertSheetImageRef.current(url);
-          }
-      }
-  }, [mediaModal.target]);
+  const handleMediaInsert = (url: string) => {
+      const quill = quillRef.current?.getEditor();
+      if (!quill) return;
+      
+      const range = quill.getSelection(true);
+      quill.insertEmbed(range.index, 'image', url);
+  };
 
   const canManage = ['admin', 'duty'].includes(userRole);
 
@@ -671,7 +451,7 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
     <div className="container mx-auto p-6 pb-32 max-w-5xl">
         <MediaModal 
             isOpen={mediaModal.isOpen}
-            onClose={() => setMediaModal(prev => ({ ...prev, isOpen: false }))}
+            onClose={() => setMediaModal({ isOpen: false })}
             onInsert={handleMediaInsert}
         />
 
@@ -686,13 +466,11 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
         </div>
 
         {isEditMode ? (
-            <div className="bg-white rounded-3xl shadow-xl border border-stone-200 animate-fade-in relative p-1 overflow-visible">
+            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-stone-200 animate-fade-in relative p-1">
                 <CustomToolbar 
-                    id={toolbarId}
-                    onImage={() => setMediaModal({ isOpen: true, target: 'quill' })} 
+                    onImage={() => setMediaModal({ isOpen: true })} 
                 />
                 <ReactQuill 
-                    key={toolbarId} // Force remount if ID changes (rare)
                     ref={quillRef}
                     theme="snow"
                     value={editorHtml}
@@ -704,12 +482,7 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
                 
                 {/* Sheet Editor Section */}
                 <div className="p-4 border-t border-stone-100 bg-white">
-                    <SheetEditor 
-                        data={sheetData} 
-                        onChange={setSheetData} 
-                        onImageRequest={() => setMediaModal({ isOpen: true, target: 'sheet' })}
-                        insertImageRef={insertSheetImageRef}
-                    />
+                    <SheetEditor data={sheetData} onChange={setSheetData} />
                 </div>
                 <div className="h-24"></div>
             </div>
@@ -718,14 +491,14 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
                 <div className="ql-editor" dangerouslySetInnerHTML={{ __html: editorHtml }} />
                 
                 {/* Sheet View Section */}
-                {sheetData.length > 0 && sheetData.some(r=>r.some(c=>c.value.trim())) && (
+                {sheetData.length > 0 && sheetData.some(r=>r.some(c=>c.trim())) && (
                     <div className="mt-12 border-t border-stone-100 pt-8">
                         <h3 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-4">相關表格</h3>
                         <SheetEditor data={sheetData} onChange={()=>{}} readOnly />
                     </div>
                 )}
                 
-                {(!editorHtml || editorHtml === '<p><br></p>') && (!sheetData.length || !sheetData.some(r=>r.some(c=>c.value.trim()))) && <div className="text-center text-stone-300 py-20">尚無內容</div>}
+                {(!editorHtml || editorHtml === '<p><br></p>') && (!sheetData.length || !sheetData.some(r=>r.some(c=>c.trim()))) && <div className="text-center text-stone-300 py-20">尚無內容</div>}
             </div>
         )}
 

@@ -114,6 +114,153 @@ const toggleArrayItem = (arr: string[], item: string) => {
     return arr.includes(item) ? arr.filter(i => i !== item) : [...arr, item];
 };
 
+// --- Media Modal Component ---
+const MediaModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onInsert: (url: string) => void;
+}> = ({ isOpen, onClose, onInsert }) => {
+    const [activeTab, setActiveTab] = useState<'upload' | 'url'>('upload');
+    const [url, setUrl] = useState('');
+    const [file, setFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            setErrorMsg(null);
+            setFile(null);
+            setUrl('');
+            setUploading(false);
+        }
+    }, [isOpen]);
+
+    if (!isOpen) return null;
+
+    const handleUpload = async () => {
+        setErrorMsg(null);
+        if (!file) return;
+        
+        if (file.size > 50 * 1024 * 1024) {
+             setErrorMsg('檔案過大 (超過 50MB)。\n建議壓縮檔案後再試。');
+             return;
+        }
+
+        setUploading(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+            const { error } = await supabase.storage.from('media').upload(fileName, file);
+            if (error) throw error;
+            
+            const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(fileName);
+            onInsert(publicUrl);
+            onClose();
+        } catch (error: any) {
+            if (error.message && error.message.includes('maximum allowed size')) {
+                 setErrorMsg('上傳失敗：檔案超過伺服器限制 (50MB)。');
+            } else {
+                 setErrorMsg('上傳失敗：' + error.message);
+            }
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleUrlInsert = () => {
+        if (!url) return;
+        onInsert(url);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex justify-center items-center p-4" onClick={onClose}>
+            <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl border border-white/50" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-stone-800 mb-4">插入圖片</h3>
+                
+                {errorMsg && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-pulse">
+                        <div className="text-red-500 text-lg">⚠️</div>
+                        <p className="text-xs text-red-600 font-bold whitespace-pre-line leading-relaxed pt-0.5">{errorMsg}</p>
+                    </div>
+                )}
+
+                <div className="flex gap-4 mb-6 border-b border-stone-100">
+                    <button onClick={() => { setActiveTab('upload'); setErrorMsg(null); }} className={`pb-2 text-sm font-bold ${activeTab === 'upload' ? 'text-pizza-500 border-b-2 border-pizza-500' : 'text-stone-400'}`}>上傳檔案</button>
+                    <button onClick={() => { setActiveTab('url'); setErrorMsg(null); }} className={`pb-2 text-sm font-bold ${activeTab === 'url' ? 'text-pizza-500 border-b-2 border-pizza-500' : 'text-stone-400'}`}>網址連結</button>
+                </div>
+                {activeTab === 'upload' ? (
+                    <div className="space-y-4">
+                        <div className="border-2 border-dashed border-stone-200 rounded-xl p-8 text-center hover:bg-stone-50 transition-colors">
+                            <input type="file" accept="image/*" onChange={e => { if(e.target.files && e.target.files[0]) { setFile(e.target.files[0]); setErrorMsg(null); } }} className="hidden" id="media-upload" />
+                            <label htmlFor="media-upload" className="cursor-pointer flex flex-col items-center">
+                                <span className="text-2xl mb-2">📷</span>
+                                <span className="text-sm font-bold text-stone-600">{file ? file.name : '點擊選擇檔案'}</span>
+                            </label>
+                        </div>
+                        <button onClick={handleUpload} disabled={!file || uploading} className="w-full py-3 bg-pizza-500 hover:bg-pizza-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">{uploading ? '上傳中...' : '確認上傳'}</button>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <input type="text" value={url} onChange={e => { setUrl(e.target.value); setErrorMsg(null); }} placeholder="https://example.com/image.jpg" className="w-full px-4 py-3 rounded-xl bg-stone-50 border border-stone-200 focus:border-pizza-500 outline-none text-sm" />
+                        <button onClick={handleUrlInsert} disabled={!url} className="w-full py-3 bg-pizza-500 hover:bg-pizza-600 text-white rounded-xl font-bold text-sm disabled:opacity-50">插入連結</button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// --- Custom Toolbar Component ---
+const CustomToolbar = React.memo(({ onImage, id }: { onImage: () => void, id: string }) => (
+    <div id={id} className="flex flex-wrap items-center gap-1 sticky top-0 z-20 bg-[#f5f5f4] border-b border-[#e7e5e4] px-2 py-2 rounded-t-2xl">
+      <select className="ql-header" defaultValue="" onChange={e => e.persist()} title="標題">
+        <option value="1" />
+        <option value="2" />
+        <option value="" />
+      </select>
+      <select className="ql-font" defaultValue="inter" title="字體">
+        <option value="inter">Inter</option>
+        <option value="roboto">Roboto</option>
+        <option value="playfair">Playfair</option>
+        <option value="syne">Syne</option>
+        <option value="dela">Dela Gothic</option>
+        <option value="noto">Noto Sans TC</option>
+      </select>
+      <select className="ql-size" defaultValue="16px" title="大小">
+        <option value="12px">12px</option>
+        <option value="14px">14px</option>
+        <option value="16px">16px</option>
+        <option value="18px">18px</option>
+        <option value="20px">20px</option>
+        <option value="24px">24px</option>
+        <option value="30px">30px</option>
+        <option value="36px">36px</option>
+        <option value="48px">48px</option>
+      </select>
+      <span className="w-px h-4 bg-stone-300 mx-1" />
+      <button className="ql-bold" title="粗體" />
+      <button className="ql-italic" title="斜體" />
+      <button className="ql-underline" title="底線" />
+      <button className="ql-strike" title="刪除線" />
+      <button className="ql-blockquote" title="引用" />
+      <select className="ql-color" title="文字顏色" />
+      <select className="ql-background" title="背景顏色" />
+      <span className="w-px h-4 bg-stone-300 mx-1" />
+      <button className="ql-list" value="ordered" title="編號列表" />
+      <button className="ql-list" value="bullet" title="項目符號" />
+      <button className="ql-align" value="" title="靠左對齊" />
+      <button className="ql-align" value="center" title="置中對齊" />
+      <button className="ql-align" value="right" title="靠右對齊" />
+      <span className="w-px h-4 bg-stone-300 mx-1" />
+      <button className="ql-link" title="插入連結" />
+      <button onClick={onImage} className="hover:text-pizza-500" title="插入圖片">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+      </button>
+      <button className="ql-clean" title="清除格式" />
+    </div>
+));
+
 interface AnnouncementDetailPageProps {
     userRole: UserRole;
     userId: string;
@@ -149,23 +296,22 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
     // Tags
     const [tagOptions, setTagOptions] = useState<{ jobs: TagData[], stations: TagData[], categories: TagData[] }>({ jobs: [], stations: [], categories: [] });
 
+    // Media Modal State
+    const [mediaModal, setMediaModal] = useState<{ isOpen: boolean }>({ isOpen: false });
+
     // Quill ref
     const quillRef = useRef<ReactQuill>(null);
+
+    // Unique toolbar ID for this instance
+    const toolbarId = useMemo(() => `anno-toolbar-${Math.random().toString(36).substr(2, 9)}`, []);
 
     // Toolbar modules
     const modules = useMemo(() => ({
         toolbar: {
-          container: [
-            [{ 'header': [1, 2, 3, false] }],
-            ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-            [{ 'color': [] }, { 'background': [] }],
-            [{ 'align': [] }],
-            ['link', 'clean']
-          ]
+          container: `#${toolbarId}`,
         },
         clipboard: { matchVisual: false }
-    }), []);
+    }), [toolbarId]);
 
     useEffect(() => {
         fetchData();
@@ -341,6 +487,14 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
         }
     };
 
+    const handleMediaInsert = (url: string) => {
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+            const range = quill.getSelection(true);
+            quill.insertEmbed(range ? range.index : quill.getLength(), 'image', url);
+        }
+    };
+
     const getLocalDateStr = () => {
         const now = new Date();
         const year = now.getFullYear();
@@ -376,6 +530,12 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
 
     return (
         <div className="container mx-auto p-6 sm:p-10 max-w-4xl pb-32">
+            <MediaModal 
+                isOpen={mediaModal.isOpen}
+                onClose={() => setMediaModal({ isOpen: false })}
+                onInsert={handleMediaInsert}
+            />
+
             <div className="flex justify-between items-start mb-6">
                 <button onClick={() => navigate(-1)} className="text-stone-400 hover:text-stone-600 font-bold text-sm uppercase tracking-widest">← 返回</button>
                 {canManage && !isEditing && (
@@ -478,15 +638,17 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
 
                     <div>
                         <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-2">內容</label>
-                        <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
+                        <div className="bg-white rounded-xl border border-stone-200 overflow-visible relative">
+                            <CustomToolbar id={toolbarId} onImage={() => setMediaModal({ isOpen: true })} />
                             <ReactQuill 
                                 ref={quillRef}
                                 theme="snow"
                                 value={editorHtml}
                                 onChange={setEditorHtml}
                                 modules={modules}
-                                className="h-64 mb-10"
+                                className="h-64 mb-12"
                             />
+                            <div className="h-12 bg-white"></div>
                         </div>
                     </div>
 

@@ -471,7 +471,7 @@ const AnnouncementListPage: React.FC = () => {
                                             {a.cycle_type && a.cycle_type.startsWith('weekly') ? '每週重複' : a.cycle_type === 'monthly' ? '每月1號' : a.cycle_type === 'fixed' ? '指定日期' : '每日'}
                                         </span>
                                         <span className="px-2 py-0.5 bg-sky-50 text-sky-600 text-[10px] font-bold uppercase rounded">{a.category}</span>
-                                        {(a.target_stations as string[])?.map(s => <span key={s} className="px-2 py-0.5 bg-stone-50 text-stone-400 text-[10px] rounded">{s}</span>)}
+                                        {a.target_stations?.map(s => <span key={s} className="px-2 py-0.5 bg-stone-50 text-stone-400 text-[10px] rounded">{s}</span>)}
                                     </div>
                                 </div>
                                 {/* Delete Button - Stops propagation to allow checkbox/navigation separation */}
