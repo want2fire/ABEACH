@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
@@ -114,45 +113,95 @@ const convertBlocksToHtml = (blocks: SOPBlock[]): string => {
     return autoLinkHtml(rawHtml);
 };
 
-// Sheet Editor Component
-const SheetEditor: React.FC<{ data: string[][], onChange: (data: string[][]) => void, readOnly?: boolean }> = ({ data, onChange, readOnly }) => {
-    const grid = data.length > 0 ? data : [['', '', ''], ['', '', ''], ['', '', '']];
+// --- Sheet Editor Types & Components ---
+
+interface SheetCell {
+    value: string;
+    style?: React.CSSProperties;
+}
+
+const normalizeSheetData = (data: any): SheetCell[][] => {
+    if (!Array.isArray(data)) return [];
+    if (data.length === 0) return [];
+    
+    // Check first cell to see if it's legacy string format
+    const isLegacy = typeof data[0][0] === 'string';
+
+    if (isLegacy) {
+        return data.map((row: any[]) => row.map(cell => ({ value: String(cell || ''), style: {} })));
+    }
+    return data;
+};
+
+const SheetEditor: React.FC<{ data: SheetCell[][], onChange: (data: SheetCell[][]) => void, readOnly?: boolean }> = ({ data, onChange, readOnly }) => {
+    const grid = data.length > 0 ? data : [[{ value: '', style: {} }, { value: '', style: {} }, { value: '', style: {} }], [{ value: '', style: {} }, { value: '', style: {} }, { value: '', style: {} }]];
+    
+    // Tracking active cell for styling [row, col]
+    const [activeCell, setActiveCell] = useState<{r: number, c: number} | null>(null);
+    const [showColorPicker, setShowColorPicker] = useState<'text' | 'bg' | null>(null);
 
     const handleCellChange = (r: number, c: number, value: string) => {
-        const newGrid = grid.map((row, ri) => ri === r ? row.map((col, ci) => ci === c ? value : col) : row);
+        const newGrid = grid.map((row, ri) => ri === r ? row.map((col, ci) => ci === c ? { ...col, value } : col) : row);
         onChange(newGrid);
+    };
+
+    const handleStyleChange = (styleKey: keyof React.CSSProperties, value: any) => {
+        if (!activeCell) return;
+        const { r, c } = activeCell;
+        const currentCell = grid[r][c];
+        const newStyle = { ...currentCell.style, [styleKey]: value };
+        
+        // Remove style if value is empty/null (optional cleanup)
+        if (!value) delete (newStyle as any)[styleKey];
+
+        const newGrid = grid.map((row, ri) => ri === r ? row.map((col, ci) => ci === c ? { ...col, style: newStyle } : col) : row);
+        onChange(newGrid);
+        setShowColorPicker(null);
+    };
+
+    const toggleBold = () => {
+        if (!activeCell) return;
+        const currentWeight = grid[activeCell.r][activeCell.c].style?.fontWeight;
+        handleStyleChange('fontWeight', currentWeight === 'bold' ? 'normal' : 'bold');
     };
 
     const addRow = () => {
         const cols = grid[0]?.length || 3;
-        onChange([...grid, Array(cols).fill('')]);
+        onChange([...grid, Array(cols).fill({ value: '', style: {} })]);
     };
 
     const addCol = () => {
-        onChange(grid.map(row => [...row, '']));
+        onChange(grid.map(row => [...row, { value: '', style: {} }]));
     };
     
     const removeRow = (index: number) => {
         if(grid.length <= 1) return;
         onChange(grid.filter((_, i) => i !== index));
+        setActiveCell(null);
     };
     
     const removeCol = (index: number) => {
         if(grid[0].length <= 1) return;
         onChange(grid.map(row => row.filter((_, i) => i !== index)));
+        setActiveCell(null);
     };
 
+    // --- Read Only View ---
     if (readOnly) {
-        if (grid.every(r => r.every(c => !c.trim()))) return null;
+        if (grid.every(r => r.every(c => !c.value.trim()))) return null;
         return (
-            <div className="mt-8 overflow-x-auto rounded-xl border border-stone-200">
-                <table className="w-full text-sm text-left text-stone-600">
+            <div className="mt-8 overflow-x-auto rounded-xl border border-stone-200 shadow-sm">
+                <table className="w-full text-sm text-left text-stone-600 border-collapse">
                     <tbody>
                         {grid.map((row, ri) => (
                             <tr key={ri} className="border-b border-stone-100 last:border-0 hover:bg-stone-50">
                                 {row.map((cell, ci) => (
-                                    <td key={ci} className={`px-6 py-4 border-r border-stone-100 last:border-0 ${ri === 0 ? 'font-bold bg-stone-50 text-stone-800' : ''}`}>
-                                        {cell}
+                                    <td 
+                                        key={ci} 
+                                        className={`px-6 py-4 border-r border-stone-100 last:border-0 ${ri === 0 && !cell.style?.fontWeight ? 'font-bold bg-stone-50 text-stone-800' : ''}`}
+                                        style={cell.style}
+                                    >
+                                        {cell.value}
                                     </td>
                                 ))}
                             </tr>
@@ -163,33 +212,143 @@ const SheetEditor: React.FC<{ data: string[][], onChange: (data: string[][]) => 
         );
     }
 
+    // --- Editor Toolbar ---
+    const colors = [
+        { label: '預設', value: '' },
+        { label: 'Pizza Orange', value: '#f97316' },
+        { label: 'Red', value: '#ef4444' },
+        { label: 'Green', value: '#10b981' },
+        { label: 'Blue', value: '#3b82f6' },
+        { label: 'Gray', value: '#57534e' },
+        { label: 'Black', value: '#000000' },
+    ];
+    
+    const bgColors = [
+        { label: '無', value: '' },
+        { label: 'White', value: '#ffffff' },
+        { label: 'Stone', value: '#fafaf9' },
+        { label: 'Orange', value: '#ffedd5' },
+        { label: 'Red', value: '#fee2e2' },
+        { label: 'Green', value: '#d1fae5' },
+        { label: 'Blue', value: '#dbeafe' },
+        { label: 'Yellow', value: '#fef3c7' },
+    ];
+
     return (
         <div className="mt-8 p-6 bg-stone-50 rounded-2xl border border-stone-200">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-sm font-bold text-stone-500 uppercase tracking-widest">附表編輯 (Sheet)</h3>
-                <div className="flex gap-2">
-                    <button onClick={addRow} className="px-3 py-1 bg-white border border-stone-300 rounded text-xs font-bold hover:bg-stone-100">+ 列 (Row)</button>
-                    <button onClick={addCol} className="px-3 py-1 bg-white border border-stone-300 rounded text-xs font-bold hover:bg-stone-100">+ 行 (Col)</button>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                <h3 className="text-sm font-bold text-stone-500 uppercase tracking-widest shrink-0">附表編輯</h3>
+                
+                {/* Toolbar */}
+                <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-lg border border-stone-200 shadow-sm">
+                     {/* Text Color */}
+                    <div className="relative">
+                        <button 
+                            onMouseDown={(e) => { e.preventDefault(); setShowColorPicker(showColorPicker === 'text' ? null : 'text'); }}
+                            className="p-1.5 rounded hover:bg-stone-100 text-stone-600 font-bold text-xs flex items-center gap-1"
+                            title="文字顏色"
+                        >
+                            <span className="w-4 h-4 rounded-full border border-stone-200" style={{ background: activeCell ? grid[activeCell.r][activeCell.c].style?.color || '#000' : '#000' }}></span>
+                            <span className="text-[10px]">▼</span>
+                        </button>
+                        {showColorPicker === 'text' && (
+                            <div className="absolute top-full left-0 mt-1 bg-white border border-stone-200 rounded-lg shadow-xl z-20 p-2 grid grid-cols-4 gap-1 w-32">
+                                {colors.map(c => (
+                                    <button 
+                                        key={c.label} 
+                                        onMouseDown={(e) => { e.preventDefault(); handleStyleChange('color', c.value); }}
+                                        className="w-6 h-6 rounded-full border border-stone-100 hover:scale-110 transition-transform"
+                                        style={{ background: c.value || `linear-gradient(to bottom right, #fff, #ccc)` }}
+                                        title={c.label}
+                                    />
+                                ))}
+                                <label className="w-6 h-6 rounded-full border border-stone-100 overflow-hidden cursor-pointer relative hover:scale-110 transition-transform">
+                                    <input type="color" className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" onChange={(e) => handleStyleChange('color', e.target.value)} />
+                                    <span className="absolute inset-0 bg-gradient-to-br from-red-500 via-green-500 to-blue-500"></span>
+                                </label>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Bg Color */}
+                    <div className="relative">
+                        <button 
+                             onMouseDown={(e) => { e.preventDefault(); setShowColorPicker(showColorPicker === 'bg' ? null : 'bg'); }}
+                            className="p-1.5 rounded hover:bg-stone-100 text-stone-600 font-bold text-xs flex items-center gap-1"
+                            title="背景顏色"
+                        >
+                            <span className="w-4 h-4 rounded border border-stone-200" style={{ background: activeCell ? grid[activeCell.r][activeCell.c].style?.backgroundColor || '#fff' : '#fff' }}></span>
+                            <span className="text-[10px]">▼</span>
+                        </button>
+                        {showColorPicker === 'bg' && (
+                            <div className="absolute top-full left-0 mt-1 bg-white border border-stone-200 rounded-lg shadow-xl z-20 p-2 grid grid-cols-4 gap-1 w-32">
+                                {bgColors.map(c => (
+                                    <button 
+                                        key={c.label} 
+                                        onMouseDown={(e) => { e.preventDefault(); handleStyleChange('backgroundColor', c.value); }}
+                                        className="w-6 h-6 rounded border border-stone-100 hover:scale-110 transition-transform"
+                                        style={{ background: c.value || `linear-gradient(to bottom right, #fff, #ccc)` }}
+                                        title={c.label}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="w-px h-4 bg-stone-300 mx-1"></div>
+
+                    {/* Bold */}
+                    <button 
+                        onMouseDown={(e) => { e.preventDefault(); toggleBold(); }}
+                        className={`p-1.5 rounded hover:bg-stone-100 font-serif font-bold text-stone-700 ${activeCell && grid[activeCell.r][activeCell.c].style?.fontWeight === 'bold' ? 'bg-stone-200' : ''}`}
+                        title="粗體"
+                    >
+                        B
+                    </button>
+
+                    <div className="w-px h-4 bg-stone-300 mx-1"></div>
+
+                    {/* Alignment */}
+                    <button onMouseDown={(e) => { e.preventDefault(); handleStyleChange('textAlign', 'left'); }} className="p-1.5 rounded hover:bg-stone-100" title="靠左">
+                        <svg className="w-3 h-3 text-stone-600" fill="currentColor" viewBox="0 0 24 24"><path d="M3 18h12v-2H3v2zM3 6v2h18V6H3zm0 7h18v-2H3v2z"/></svg>
+                    </button>
+                    <button onMouseDown={(e) => { e.preventDefault(); handleStyleChange('textAlign', 'center'); }} className="p-1.5 rounded hover:bg-stone-100" title="置中">
+                        <svg className="w-3 h-3 text-stone-600" fill="currentColor" viewBox="0 0 24 24"><path d="M7 15v2h10v-2H7zm-4 6h18v-2H3v2zm0-8h18v-2H3v2zm4-6v2h10V7H7zM3 3v2h18V3H3z"/></svg>
+                    </button>
+                    <button onMouseDown={(e) => { e.preventDefault(); handleStyleChange('textAlign', 'right'); }} className="p-1.5 rounded hover:bg-stone-100" title="靠右">
+                        <svg className="w-3 h-3 text-stone-600" fill="currentColor" viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+                    </button>
+
+                    <div className="w-px h-4 bg-stone-300 mx-1"></div>
+
+                    {/* Structure */}
+                    <div className="flex gap-1">
+                        <button onClick={addRow} className="px-2 py-1 bg-stone-100 border border-stone-200 rounded text-[10px] font-bold hover:bg-white text-stone-600">+列</button>
+                        <button onClick={addCol} className="px-2 py-1 bg-stone-100 border border-stone-200 rounded text-[10px] font-bold hover:bg-white text-stone-600">+行</button>
+                    </div>
                 </div>
             </div>
-            <div className="overflow-x-auto p-4">
+            
+            <div className="overflow-x-auto p-4 bg-white rounded-xl shadow-inner border border-stone-100">
                 <table className="w-full border-collapse">
                     <tbody>
                         {grid.map((row, ri) => (
                             <tr key={ri}>
                                 {row.map((cell, ci) => (
-                                    <td key={`${ri}-${ci}`} className="border border-stone-300 p-0 min-w-[100px] relative group">
+                                    <td key={`${ri}-${ci}`} className="border border-stone-200 p-0 min-w-[100px] relative group">
                                         <input 
                                             type="text" 
-                                            value={cell} 
+                                            value={cell.value} 
                                             onChange={(e) => handleCellChange(ri, ci, e.target.value)}
-                                            className={`w-full h-full px-3 py-2 outline-none focus:bg-pizza-50 transition-colors ${ri===0 ? 'font-bold bg-stone-100' : 'bg-white'}`}
+                                            onFocus={() => setActiveCell({ r: ri, c: ci })}
+                                            style={cell.style}
+                                            className={`w-full h-full px-3 py-2 outline-none transition-colors ${ri===0 && !cell.style?.backgroundColor ? 'font-bold bg-stone-50' : 'bg-transparent'} ${activeCell?.r === ri && activeCell?.c === ci ? 'ring-2 ring-pizza-500 ring-inset z-10' : ''}`}
                                         />
                                         {ci === row.length - 1 && grid.length > 1 && (
-                                            <button onClick={() => removeRow(ri)} className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 z-10 hover:scale-110 flex items-center justify-center shadow-md" title="刪除列">×</button>
+                                            <button onClick={() => removeRow(ri)} className="absolute -right-3 top-1/2 -translate-y-1/2 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] opacity-0 group-hover:opacity-100 z-10 hover:scale-110 flex items-center justify-center shadow-md border-2 border-white" title="刪除列">×</button>
                                         )}
                                         {ri === grid.length - 1 && row.length > 1 && (
-                                            <button onClick={() => removeCol(ci)} className="absolute bottom-[-12px] left-1/2 -translate-x-1/2 w-6 h-6 bg-red-500 text-white rounded-full text-xs opacity-0 group-hover:opacity-100 z-10 hover:scale-110 flex items-center justify-center shadow-md" title="刪除行">×</button>
+                                            <button onClick={() => removeCol(ci)} className="absolute bottom-[-10px] left-1/2 -translate-x-1/2 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] opacity-0 group-hover:opacity-100 z-10 hover:scale-110 flex items-center justify-center shadow-md border-2 border-white" title="刪除行">×</button>
                                         )}
                                     </td>
                                 ))}
@@ -299,7 +458,8 @@ const MediaModal: React.FC<{
     );
 };
 
-const CustomToolbar = ({ onImage }: { onImage: () => void }) => (
+// Memoized Custom Toolbar to prevent re-renders crashing Quill
+const CustomToolbar = React.memo(({ onImage }: { onImage: () => void }) => (
     <div id="toolbar" className="flex flex-wrap items-center gap-1 sticky top-0 z-20 bg-[#f5f5f4] border-b border-[#e7e5e4] px-2 py-2 rounded-t-2xl">
       <select className="ql-header" defaultValue="" onChange={e => e.persist()} title="標題">
         <option value="1" />
@@ -346,14 +506,14 @@ const CustomToolbar = ({ onImage }: { onImage: () => void }) => (
       </button>
       <button className="ql-clean" title="清除格式" />
     </div>
-);
+));
 
 const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) => {
   const { itemId } = useParams<{ itemId: string }>();
   const navigate = useNavigate();
   const [item, setItem] = useState<TrainingItem | null>(null);
   const [editorHtml, setEditorHtml] = useState('');
-  const [sheetData, setSheetData] = useState<string[][]>([]);
+  const [sheetData, setSheetData] = useState<SheetCell[][]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -386,7 +546,8 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
         if (tableBlock) {
             try {
                 const parsed = JSON.parse(tableBlock.content);
-                setSheetData(Array.isArray(parsed) ? parsed : []);
+                // Normalize legacy data if needed
+                setSheetData(normalizeSheetData(parsed));
             } catch (e) {
                 setSheetData([]);
             }
@@ -415,7 +576,7 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
     ];
 
     // Append table block if there is data
-    if (sheetData.length > 0 && sheetData.some(row => row.some(cell => cell.trim() !== ''))) {
+    if (sheetData.length > 0 && sheetData.some(row => row.some(cell => cell.value.trim() !== ''))) {
         blocks.push({
             id: crypto.randomUUID(),
             type: 'table',
@@ -431,13 +592,13 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
     setIsEditMode(false);
   };
 
-  const handleMediaInsert = (url: string) => {
+  const handleMediaInsert = React.useCallback((url: string) => {
       const quill = quillRef.current?.getEditor();
       if (!quill) return;
       
       const range = quill.getSelection(true);
       quill.insertEmbed(range.index, 'image', url);
-  };
+  }, []);
 
   const canManage = ['admin', 'duty'].includes(userRole);
 
@@ -491,14 +652,14 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
                 <div className="ql-editor" dangerouslySetInnerHTML={{ __html: editorHtml }} />
                 
                 {/* Sheet View Section */}
-                {sheetData.length > 0 && sheetData.some(r=>r.some(c=>c.trim())) && (
+                {sheetData.length > 0 && sheetData.some(r=>r.some(c=>c.value.trim())) && (
                     <div className="mt-12 border-t border-stone-100 pt-8">
                         <h3 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-4">相關表格</h3>
                         <SheetEditor data={sheetData} onChange={()=>{}} readOnly />
                     </div>
                 )}
                 
-                {(!editorHtml || editorHtml === '<p><br></p>') && (!sheetData.length || !sheetData.some(r=>r.some(c=>c.trim()))) && <div className="text-center text-stone-300 py-20">尚無內容</div>}
+                {(!editorHtml || editorHtml === '<p><br></p>') && (!sheetData.length || !sheetData.some(r=>r.some(c=>c.value.trim()))) && <div className="text-center text-stone-300 py-20">尚無內容</div>}
             </div>
         )}
 
