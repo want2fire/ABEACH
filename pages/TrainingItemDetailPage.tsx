@@ -6,16 +6,19 @@ import { type TrainingItem, type SOPBlock, type UserRole } from '../types';
 import ReactQuill from 'react-quill';
 
 // --- Robust Quill Registration ---
-// Define fonts and sizes outside to ensure they are available for registration
 const FONT_WHITELIST = ['inter', 'roboto', 'playfair', 'syne', 'dela', 'noto'];
 const SIZE_WHITELIST = ['12px', '14px', '16px', '18px', '20px', '24px', '30px', '36px', '48px'];
 
 const registerQuill = () => {
     let QuillInstance: any = null;
-    // Try to get Quill from the ReactQuill export or window
+
+    // 1. Try ReactQuill static property (CommonJS/ESM interop)
     if (ReactQuill && (ReactQuill as any).Quill) {
         QuillInstance = (ReactQuill as any).Quill;
-    } else if ((window as any).Quill) {
+    }
+
+    // 2. Try Window global (CDN/UMD)
+    if (!QuillInstance && (window as any).Quill) {
         QuillInstance = (window as any).Quill;
     }
 
@@ -25,21 +28,17 @@ const registerQuill = () => {
         Font.whitelist = FONT_WHITELIST;
         QuillInstance.register(Font, true);
 
-        // Register Sizes (Use inline styles for pixels)
-        try {
-            const Size = QuillInstance.import('attributors/style/size');
-            Size.whitelist = SIZE_WHITELIST;
-            QuillInstance.register(Size, true);
-        } catch (e) {
-            console.warn('Quill size registration fallback', e);
-            const Size = QuillInstance.import('formats/size');
-            Size.whitelist = SIZE_WHITELIST;
-            QuillInstance.register(Size, true);
-        }
+        // Register Sizes
+        const Size = QuillInstance.import('attributors/style/size');
+        Size.whitelist = SIZE_WHITELIST;
+        QuillInstance.register(Size, true);
+        
+        return true;
     }
+    return false;
 };
 
-// Execute registration immediately
+// Try registering immediately
 registerQuill();
 
 // Improved Auto-link Strategy
@@ -509,8 +508,8 @@ const MediaModal: React.FC<{
     );
 };
 
-const CustomToolbar = React.memo(({ onImage }: { onImage: () => void }) => (
-    <div id="toolbar" className="flex flex-wrap items-center gap-1 sticky top-0 z-20 bg-[#f5f5f4] border-b border-[#e7e5e4] px-2 py-2 rounded-t-2xl">
+const CustomToolbar = React.memo(({ onImage, id }: { onImage: () => void, id: string }) => (
+    <div id={id} className="flex flex-wrap items-center gap-1 sticky top-0 z-20 bg-[#f5f5f4] border-b border-[#e7e5e4] px-2 py-2 rounded-t-2xl">
       <select className="ql-header" defaultValue="" onChange={e => e.persist()} title="標題">
         <option value="1" />
         <option value="2" />
@@ -569,22 +568,30 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
   const [isEditMode, setIsEditMode] = useState(false);
   const [mediaModal, setMediaModal] = useState<{ isOpen: boolean; target: 'quill' | 'sheet' }>({ isOpen: false, target: 'quill' });
   
+  // Generate unique ID for this editor instance's toolbar to avoid ID conflicts
+  const toolbarId = useMemo(() => `toolbar-${Math.random().toString(36).substr(2, 9)}`, []);
+  
   const quillRef = useRef<ReactQuill>(null);
   const insertSheetImageRef = useRef<((url: string) => void) | undefined>(undefined);
 
   const modules = useMemo(() => ({
     toolbar: {
-      container: "#toolbar",
+      container: `#${toolbarId}`,
     },
     clipboard: {
         matchVisual: false
     }
-  }), []);
+  }), [toolbarId]);
 
   useEffect(() => {
-    // Ensure Quill formats are registered when the component mounts
-    registerQuill();
-    
+    // Ensure Quill formats are registered when entering edit mode
+    if (isEditMode) {
+        const registered = registerQuill();
+        if (!registered) console.warn('Quill registration failed, custom formats may not work');
+    }
+  }, [isEditMode]);
+
+  useEffect(() => {
     const fetchItem = async () => {
       if (!itemId) return;
       setLoading(true);
@@ -637,7 +644,13 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
           const quill = quillRef.current?.getEditor();
           if (quill) {
               const range = quill.getSelection(true);
-              quill.insertEmbed(range.index, 'image', url);
+              if (range) {
+                  quill.insertEmbed(range.index, 'image', url);
+              } else {
+                  // If no selection, insert at end
+                  const len = quill.getLength();
+                  quill.insertEmbed(len, 'image', url);
+              }
           }
       } else if (mediaModal.target === 'sheet') {
           if (insertSheetImageRef.current) {
@@ -673,11 +686,13 @@ const TrainingItemDetailPage: React.FC<{ userRole: UserRole }> = ({ userRole }) 
         </div>
 
         {isEditMode ? (
-            <div className="bg-white rounded-3xl shadow-xl border border-stone-200 animate-fade-in relative p-1">
+            <div className="bg-white rounded-3xl shadow-xl border border-stone-200 animate-fade-in relative p-1 overflow-visible">
                 <CustomToolbar 
+                    id={toolbarId}
                     onImage={() => setMediaModal({ isOpen: true, target: 'quill' })} 
                 />
                 <ReactQuill 
+                    key={toolbarId} // Force remount if ID changes (rare)
                     ref={quillRef}
                     theme="snow"
                     value={editorHtml}
