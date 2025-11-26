@@ -68,10 +68,18 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
         const fetchAnnos = async () => {
             setIsLoadingAnnos(true);
             const now = new Date();
-            const todayStr = now.toLocaleDateString('en-CA'); 
+            
+            // Manual construction to ensure YYYY-MM-DD format regardless of locale
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
+
             const currentDayOfWeek = now.getDay(); 
             const currentDayOfMonth = now.getDate(); 
-            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            
+            // Determine if user is a manager (Admin or Duty)
+            const isManager = ['admin', 'duty'].includes(user.role);
 
             // Fetch all potentially active announcements
             const { data: annosData } = await supabase.from('announcements')
@@ -90,13 +98,19 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
 
             if (annosData) {
                 const activeAnnos = (annosData as Announcement[]).filter(a => {
-                    // 0. Global End Date Check (Fix: Ensure expired announcements disappear)
+                    // 0. Global End Date Check 
+                    // This applies to EVERYONE (even admins). If it's expired, it shouldn't show in the active feed.
                     if (a.end_date && todayStr > a.end_date) return false;
+
+                    // --- Manager Bypass Logic ---
+                    // If user is Admin or Duty, they see ALL active announcements regardless of Role, Station, or Cycle.
+                    if (isManager) return true;
 
                     // 1. Role Check
                     const roleMatch = (a.target_roles || []).some(r => {
                         const rTrimmed = r.trim();
                         if (rTrimmed === '一般員工') return true;
+                        // Special handling if target is DUTY or ATEAM to match user job titles
                         if (rTrimmed === 'DUTY' && (user.jobTitle.includes('DUTY') || user.jobTitle === 'A TEAM' || user.jobTitle === '管理員')) return true;
                         if (rTrimmed === 'ATEAM' && (user.jobTitle === 'A TEAM' || user.jobTitle === '管理員')) return true;
                         if (user.jobTitle === rTrimmed) return true;
@@ -116,13 +130,17 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                     if (a.cycle_type === 'monthly') {
                         if (currentDayOfMonth !== 1) cycleMatch = false;
                     } else if (a.cycle_type === 'fixed') {
-                        // Fixed date check is already handled by global end_date check above
+                        // Fixed date check is essentially handled by start/end dates usually, 
+                        // but if strict logic implies ONLY that specific day:
+                        // For now, relying on start_date/end_date filtering for fixed.
                     } else if (a.cycle_type.startsWith('weekly')) {
                         if (a.cycle_type.includes(':')) {
                              const daysStr = a.cycle_type.split(':')[1];
                              const days = daysStr.split(',').map(Number);
                              if (!days.includes(currentDayOfWeek)) cycleMatch = false;
                         } else {
+                             // Default weekly implies Monday if not specified? Or just every week?
+                             // Assuming default weekly means every Monday if no params, based on prev logic
                              if (currentDayOfWeek !== 1) cycleMatch = false;
                         }
                     }
@@ -230,6 +248,7 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
     }, [activeTab, searchQuery]);
 
     const isUserRole = (user && user.role) === 'user';
+    const isManager = user && ['admin', 'duty'].includes(user.role);
 
     return (
         <div className="min-h-screen bg-transparent text-stone-900 font-sans relative flex flex-col">
@@ -251,9 +270,16 @@ const HomePage: React.FC<HomePageProps> = ({ user }) => {
                                             搜尋結果: {currentList.length} 筆
                                         </span>
                                     ) : (
-                                        <span className="px-3 py-1 bg-stone-800 text-white text-xs font-bold rounded-full uppercase tracking-wider">
-                                            {activeTab === 'today' ? '本日' : activeTab === 'week' ? '本週' : '本月'}
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="px-3 py-1 bg-stone-800 text-white text-xs font-bold rounded-full uppercase tracking-wider">
+                                                {activeTab === 'today' ? '本日' : activeTab === 'week' ? '本週' : '本月'}
+                                            </span>
+                                            {isManager && (
+                                                <span className="px-2 py-0.5 border border-stone-300 text-stone-400 text-[10px] font-bold rounded uppercase tracking-wider" title="管理員可見所有發布中的公告">
+                                                    管理員視角
+                                                </span>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             </div>

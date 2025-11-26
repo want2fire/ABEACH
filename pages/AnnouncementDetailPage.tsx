@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { Announcement, TagData, UserRole, SOPBlock } from '../types';
+import { Announcement, TagData, UserRole, SOPBlock, Personnel } from '../types';
 import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
 import { TrashIcon } from '../components/icons/TrashIcon';
 
 // --- Custom Font & Size Registration ---
@@ -141,7 +140,8 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
     // Read Status
     const [isConfirmed, setIsConfirmed] = useState(false);
     const [readCount, setReadCount] = useState(0);
-    const [readList, setReadList] = useState<{name: string, time: string}[]>([]);
+    const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set());
+    const [allPersonnel, setAllPersonnel] = useState<Personnel[]>([]);
 
     // Tags
     const [tagOptions, setTagOptions] = useState<{ jobs: TagData[], stations: TagData[], categories: TagData[] }>({ jobs: [], stations: [], categories: [] });
@@ -201,15 +201,20 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
             });
         }
 
+        // Fetch Personnel for Checklist
+        const { data: people } = await supabase.from('personnel').select('id, name, station').eq('status', '在職').order('station');
+        if (people) {
+            setAllPersonnel(people.map((p:any) => ({...p, station: p.station || '未分配'})) as any);
+        }
+
         // Fetch Read Status
-        const { data: reads } = await supabase.from('announcement_reads').select('is_confirmed, read_at, personnel:personnel_id(name)').eq('announcement_id', id);
+        const { data: reads } = await supabase.from('announcement_reads').select('personnel_id, is_confirmed').eq('announcement_id', id).eq('is_confirmed', true);
         if (reads) {
-            const confirmedReads = reads.filter((r: any) => r.is_confirmed);
-            setReadCount(confirmedReads.length);
-            setReadList(confirmedReads.map((r: any) => ({ name: r.personnel?.name || '未知', time: r.read_at })));
+            const ids = new Set<string>(reads.map((r: any) => r.personnel_id));
+            setConfirmedIds(ids);
+            setReadCount(ids.size);
             
-            const { data: myReadData } = await supabase.from('announcement_reads').select('is_confirmed').eq('announcement_id', id).eq('personnel_id', userId).single();
-            if (myReadData && myReadData.is_confirmed) setIsConfirmed(true);
+            if (ids.has(userId)) setIsConfirmed(true);
         }
 
         setLoading(false);
@@ -218,7 +223,6 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
     const handleSave = async () => {
         if (!id) return;
 
-        // Save content as one richtext block for simplicity as per TrainingItemDetail strategy
         const linkedHtml = autoLinkHtml(editorHtml);
         const blocks: SOPBlock[] = [{ id: crypto.randomUUID(), type: 'richtext', content: linkedHtml }];
 
@@ -261,9 +265,32 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
         else {
             setIsConfirmed(true);
             setReadCount(prev => prev + 1);
-            setReadList(prev => [...prev, { name: userName, time: now }]);
+            setConfirmedIds(prev => {
+                const newSet = new Set(prev);
+                newSet.add(userId);
+                return newSet;
+            });
         }
     };
+
+    const getLocalDateStr = () => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    // Calculate reading stats by station
+    const personnelByStation = useMemo(() => {
+        const grouped: Record<string, Personnel[]> = {};
+        allPersonnel.forEach(p => {
+            const st = p.station || '未分配';
+            if (!grouped[st]) grouped[st] = [];
+            grouped[st].push(p);
+        });
+        return grouped;
+    }, [allPersonnel]);
 
     if (loading) return <div className="p-10 text-center text-stone-500 font-bold">載入中...</div>;
     if (!announcement) return null;
@@ -309,8 +336,22 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                              <input type="date" value={editStartDate} onChange={e => setEditStartDate(e.target.value)} className="glass-input w-full px-4 py-3 rounded-xl" />
                         </div>
                         <div>
-                             <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-2">結束日期 (選填)</label>
-                             <input type="date" value={editEndDate} onChange={e => setEditEndDate(e.target.value)} className="glass-input w-full px-4 py-3 rounded-xl" />
+                             <div className="flex justify-between items-center mb-2">
+                                <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest">結束日期</label>
+                                <label className="flex items-center gap-2 cursor-pointer bg-stone-50 hover:bg-stone-100 px-3 py-1 rounded-lg border border-stone-200 transition-colors">
+                                     <input 
+                                         type="checkbox" 
+                                         checked={!editEndDate}
+                                         onChange={(e) => {
+                                             if (e.target.checked) setEditEndDate('');
+                                             else setEditEndDate(editStartDate || getLocalDateStr());
+                                         }}
+                                         className="w-4 h-4 text-pizza-500 rounded border-stone-300 focus:ring-pizza-500"
+                                     />
+                                     <span className="text-xs font-bold text-stone-600">永久有效</span>
+                                 </label>
+                             </div>
+                             <input type="date" value={editEndDate} onChange={e => setEditEndDate(e.target.value)} disabled={!editEndDate} className={`glass-input w-full px-4 py-3 rounded-xl ${!editEndDate ? 'opacity-50 cursor-not-allowed bg-stone-100' : ''}`} />
                         </div>
                     </div>
 
@@ -330,7 +371,14 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                          </div>
                          <label className="block text-xs font-bold text-stone-500 uppercase tracking-widest mb-2">發送對象 (站區)</label>
                          <div className="flex flex-wrap gap-2">
-                            {tagOptions.stations.map(st => (
+                            <button
+                                type="button"
+                                onClick={() => setEditStations(toggleArrayItem(editStations, '全體'))}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${editStations.includes('全體') ? 'bg-stone-800 text-white border-stone-800' : 'bg-white text-stone-500 border-stone-200 hover:bg-stone-50'}`}
+                            >
+                                全體
+                            </button>
+                            {tagOptions.stations.filter(st => st.value !== '全體').map(st => (
                                 <button
                                     key={st.id}
                                     type="button"
@@ -429,15 +477,41 @@ const AnnouncementDetailPage: React.FC<AnnouncementDetailPageProps> = ({ userRol
                          )}
                     </div>
 
-                    {/* Read List (Admin/Duty Only) */}
-                    {canManage && readList.length > 0 && (
-                        <div className="glass-panel p-6 rounded-3xl bg-white/60 border border-white">
-                            <h3 className="text-xs font-bold text-stone-500 uppercase tracking-widest mb-4">確認名單</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {readList.map((r, i) => (
-                                    <div key={i} className="px-3 py-1.5 bg-white border border-stone-200 rounded-lg flex items-center gap-2" title={new Date(r.time).toLocaleString()}>
-                                        <span className="text-sm font-bold text-stone-700">{r.name}</span>
-                                        <span className="text-[10px] text-stone-400">{new Date(r.time).toLocaleDateString()}</span>
+                    {/* Detailed Read Status Checklist (Admin/Duty Only) */}
+                    {canManage && (
+                        <div className="glass-panel p-8 rounded-3xl bg-white/60 border border-white mt-8">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-sm font-bold text-stone-500 uppercase tracking-widest">閱讀狀況清單</h3>
+                                <div className="flex gap-4 text-xs font-bold">
+                                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-green-500"></div> 已讀</div>
+                                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-stone-300"></div> 未讀</div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-8">
+                                {Object.entries(personnelByStation).map(([station, people]) => (
+                                    <div key={station}>
+                                        <h4 className="text-xs font-bold text-stone-800 mb-3 border-b border-stone-200 pb-1">{station || '未分配'}</h4>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                            {people.map(p => {
+                                                const isRead = confirmedIds.has(p.id);
+                                                return (
+                                                    <div 
+                                                        key={p.id} 
+                                                        className={`px-3 py-2 rounded-lg border flex items-center gap-3 transition-colors ${
+                                                            isRead 
+                                                                ? 'bg-green-50 border-green-200' 
+                                                                : 'bg-white border-stone-200 opacity-70'
+                                                        }`}
+                                                    >
+                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${isRead ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-stone-300'}`}>
+                                                            {isRead && <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                                                        </div>
+                                                        <span className={`text-sm font-bold ${isRead ? 'text-green-800' : 'text-stone-500'}`}>{p.name}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
